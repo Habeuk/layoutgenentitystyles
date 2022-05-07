@@ -1,0 +1,15 @@
+layoutgenentitystyles.example:
+  path: '/layoutgenentitystyles/example'
+  defaults:
+    _title: 'Example'
+    _controller: '\Drupal\layoutgenentitystyles\Controller\LayoutgenentitystylesController::build'
+  requirements:
+    _permission: 'access content'
+
+layoutgenentitystyles.settings_form:
+  path: '/admin/config/system/layoutgenentitystyles'
+  defaults:
+    _title: 'layout generate entity styles settings'
+    _form: 'Drupal\layoutgenentitystyles\Form\SettingsForm'
+  requirements:
+    _permission: 'administer layoutgenentitystyles configuration'

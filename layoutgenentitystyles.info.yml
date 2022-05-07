@@ -1,0 +1,8 @@
+name: layout generate entity styles
+type: module
+description: permet de generer un fichier css/js pour chaque entity ou id d&#039;entité suivant la maniere donc le layout a été configurée.
+package: Custom
+core: 8.x
+core_version_requirement: ^8 || ^9
+dependencies:
+  - formatage_models

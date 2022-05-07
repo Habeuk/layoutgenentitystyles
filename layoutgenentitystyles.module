@@ -1,0 +1,24 @@
+<?php
+
+/**
+ *
+ * @file
+ * Primary module hooks for layout generate entity styles module.
+ *
+ * @DCG
+ * This file is no longer required in Drupal 8.
+ * @see https://www.drupal.org/node/2217931
+ */
+use Stephane888\Debug\debugLog;
+
+/**
+ * *
+ * hook_ENTITY_TYPE_presave
+ */
+function layoutgenentitystyles_entity_view_display_presave($entity) {
+  \Drupal::messenger()->addStatus(" creation des fichiers via layoutgenentitystyles_entity_view_display_presave ");
+  debugLog::kintDebugDrupal($entity, 'layoutgenentitystyles_entity_view_display_presave', true);
+}
+
+//
+
