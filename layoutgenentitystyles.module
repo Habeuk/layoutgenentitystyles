@@ -17,8 +17,18 @@ use Stephane888\Debug\debugLog;
  */
 function layoutgenentitystyles_entity_view_display_presave($entity) {
   \Drupal::messenger()->addStatus(" creation des fichiers via layoutgenentitystyles_entity_view_display_presave ");
-  debugLog::kintDebugDrupal($entity, 'layoutgenentitystyles_entity_view_display_presave', true);
+  // si on modifie le layout de rendu par defaut.
+  // dump($entity);
 }
 
 //
+/**
+ * *
+ * hook_ENTITY_TYPE_presave
+ */
+function layoutgenentitystyles_entity_presave($entity) {
+  \Drupal::messenger()->addStatus(" crview_display_eation des fichiers via layoutgenentitystyles_entity_view_display_presave ");
+  // si on modifie le layout de rendu par defaut surcharger, la valeur doit etre dans un champs.
+  // dump($entity);
+}
 

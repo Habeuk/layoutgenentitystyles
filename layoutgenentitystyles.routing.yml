@@ -1,8 +1,8 @@
-layoutgenentitystyles.example:
-  path: '/layoutgenentitystyles/example'
+layoutgenentitystyles.default:
+  path: '/layoutgenentitystyles/manuel/generate'
   defaults:
-    _title: 'Example'
-    _controller: '\Drupal\layoutgenentitystyles\Controller\LayoutgenentitystylesController::build'
+    _title: 'Add scss import to theme'
+    _controller: '\Drupal\layoutgenentitystyles\Controller\LayoutgenentitystylesController::ManuelGenerate'
   requirements:
     _permission: 'access content'
 
@@ -13,3 +13,5 @@ layoutgenentitystyles.settings_form:
     _form: 'Drupal\layoutgenentitystyles\Form\SettingsForm'
   requirements:
     _permission: 'administer layoutgenentitystyles configuration'
+    
+    
