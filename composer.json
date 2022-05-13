@@ -12,6 +12,6 @@
     "minimum-stability": "dev",
     "require": {
     "stephane888/formatage_models": "^3.0| dev-3x",
-    "stephane888/generate_style_theme": "^1.0| dev-1x",
+    "stephane888/generate_style_theme": "^1.0| dev-1x"
   }
 }

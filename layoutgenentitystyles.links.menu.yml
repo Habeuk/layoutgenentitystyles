@@ -1,6 +1,16 @@
 layoutgenentitystyles.settings_form:
-  title: layout generate entity styles
+  title: layoutgenentitystyles config
   description: Configure layout generate entity styles.
-  parent: system.admin_config_system
+  parent: system.admin_config_ui
   route_name: layoutgenentitystyles.settings_form
   weight: 10
+
+layoutgenentitystyles.generate:
+  title: Generate style
+  description: Configure layout generate entity styles.
+  parent: layoutgenentitystyles.settings_form
+  route_name: layoutgenentitystyles.generate
+  weight: 10
+
+
+

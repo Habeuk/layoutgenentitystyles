@@ -64,11 +64,14 @@ class LayoutgenentitystylesServices extends ControllerBase {
       $entity_type_id = 'entity_view_display';
       $this->sectionStorages = $this->entityTypeManager()->getStorage($entity_type_id)->loadByProperties();
     }
+    // dump($this->sectionStorages);
+    // die();
     return $this->sectionStorages;
   }
   
   /**
-   * Permet de generer tous les styles et de les ajouter dans la configuration du theme actif.
+   * Permet de generer tous les styles et de les ajouter dans la configuration
+   * du theme actif.
    */
   function generateAllFilesStyles() {
     $sectionStorages = $this->getListSectionStorages();
@@ -84,14 +87,20 @@ class LayoutgenentitystylesServices extends ControllerBase {
    */
   protected function addStylesToConfigTheme() {
     $defaultThemeName = \Drupal::config('system.theme')->get('default');
-    $config = $this->ConfigFactory->getEditable($defaultThemeName . '.settings');
-    // dump($this->libraries);
+    $ModuleConf = \Drupal::config('generate_style_theme.settings')->getRawData();
+    $conf = \Drupal\generate_style_theme\GenerateStyleTheme::getDynamicConfig($defaultThemeName, $ModuleConf);
+    $config = $this->ConfigFactory->getEditable($conf['settings']);
+    //
     foreach ($this->libraries as $section_storage => $libraries) {
       $config->set('layoutgenentitystyles.scss.' . $section_storage, $libraries['scss']);
       $config->set('layoutgenentitystyles.js.' . $section_storage, $libraries['js']);
     }
     $config->save();
     // dump($this->config($defaultThemeName . '.settings')->getRawData());
+  }
+  
+  function getLibraries() {
+    return $this->libraries;
   }
   
   /**
@@ -119,23 +128,36 @@ class LayoutgenentitystylesServices extends ControllerBase {
     ];
     
     foreach ($sections as $section) {
+      // dump($section);
+      /**
+       *
+       * @var \Drupal\layout_builder\Section $section
+       */
+      
       /**
        *
        * @var \Drupal\formatage_models\Plugin\Layout\FormatageModels $plugin
        */
-      $plugin = $this->getPluginForm($section->getLayout());
-      $library = $plugin->getPluginDefinition()->getLibrary();
-      if (!empty($library)) {
-        $subdir = '';
-        $path = $plugin->getPluginDefinition()->getPath();
-        if (strpos($path, "sections") !== FALSE)
-          $subdir = 'sections';
-        elseif (strpos($path, "teasers") !== FALSE)
-          $subdir = 'teasers';
-        //
-        $this->LoadStyleFromMod->getStyle($library, $subdir, $libraries);
+      try {
+        $plugin = $this->getPluginForm($section->getLayout());
+        $library = $plugin->getPluginDefinition()->getLibrary();
+        if (!empty($library)) {
+          $subdir = '';
+          $path = $plugin->getPluginDefinition()->getPath();
+          if (strpos($path, "sections") !== FALSE)
+            $subdir = 'sections';
+          elseif (strpos($path, "teasers") !== FALSE)
+            $subdir = 'teasers';
+          //
+          $this->LoadStyleFromMod->getStyle($library, $subdir, $libraries);
+        }
+      }
+      catch (\Exception $e) {
+        
+        $this->messenger()->addWarning("Ce plugin n'existe plus :  " . $section->getLayoutId(), true);
       }
     }
+    // dump($libraries);
     return $libraries;
   }
   
@@ -145,7 +167,8 @@ class LayoutgenentitystylesServices extends ControllerBase {
    * @param \Drupal\Core\Layout\LayoutInterface $layout
    *        The layout plugin.
    *        
-   * @return \Drupal\Core\Plugin\PluginFormInterface The plugin form for the layout.
+   * @return \Drupal\Core\Plugin\PluginFormInterface The plugin form for the
+   *         layout.
    */
   protected function getPluginForm(LayoutInterface $layout) {
     if ($layout instanceof PluginWithFormsInterface) {

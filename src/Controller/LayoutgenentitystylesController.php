@@ -58,11 +58,66 @@ class LayoutgenentitystylesController extends ControllerBase {
     return $build;
   }
   
+  /**
+   *
+   * @return string[]
+   */
   public function ManuelGenerate() {
     $this->LayoutgenentitystylesServices->generateAllFilesStyles();
+    $this->messenger()->addStatus(" Style maj, vous devez regerener les fichiers du theme. ");
+    $librairies = $this->LayoutgenentitystylesServices->getLibraries();
+    // dump($librairies);
+    $items = [];
+    foreach ($librairies as $section_storage => $librairy) {
+      $fgt = [];
+      
+      foreach ($librairy['scss'] as $pluginId => $files) {
+        $fgt[] = [
+          '#type' => 'html_tag',
+          '#tag' => 'strong',
+          '#value' => $pluginId
+        ];
+        foreach ($files as $file) {
+          $fgt[] = [
+            '#type' => 'html_tag',
+            '#tag' => 'div',
+            '#value' => $file
+          ];
+        }
+      }
+      $items[] = [
+        '#type' => 'html_tag',
+        '#tag' => 'li',
+        [
+          '#type' => 'html_tag',
+          '#tag' => 'strong',
+          '#value' => $section_storage
+        ],
+        [
+          '#type' => 'html_tag',
+          '#tag' => 'div',
+          '#attributes' => [
+            'class' => [
+              ''
+            ],
+            'style' => 'margin-bottom:30px; '
+          ],
+          $fgt
+        ]
+      ];
+    }
+    $lists = [
+      '#type' => 'html_tag',
+      '#tag' => 'ol',
+      '#attributes' => [
+        'style' => ''
+      ],
+      $items
+    ];
     $build['content'] = [
       '#type' => 'item',
-      '#markup' => $this->t(' It works! ManuelGenerate ')
+      '#markup' => "Les styles ont été MAJ.",
+      $lists
     ];
     //
     return $build;
@@ -76,7 +131,6 @@ class LayoutgenentitystylesController extends ControllerBase {
     $entity_type_id = 'entity_view_display';
     $section_storage_type = 'defaults';
     $section_storage = 'node.dynamic_home_page.default';
-    
     /**
      *
      * @var \Drupal\Core\Entity\Entity\EntityViewDisplay $ConfigEntityType
@@ -94,6 +148,7 @@ class LayoutgenentitystylesController extends ControllerBase {
       'scss' => [],
       'js' => []
     ];
+    
     foreach ($sections as $section) {
       /**
        *
@@ -141,7 +196,8 @@ class LayoutgenentitystylesController extends ControllerBase {
    * @param \Drupal\Core\Layout\LayoutInterface $layout
    *        The layout plugin.
    *        
-   * @return \Drupal\Core\Plugin\PluginFormInterface The plugin form for the layout.
+   * @return \Drupal\Core\Plugin\PluginFormInterface The plugin form for the
+   *         layout.
    */
   protected function getPluginForm(LayoutInterface $layout) {
     if ($layout instanceof PluginWithFormsInterface) {

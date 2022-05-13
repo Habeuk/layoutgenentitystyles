@@ -1,13 +1,13 @@
-layoutgenentitystyles.default:
-  path: '/layoutgenentitystyles/manuel/generate'
+layoutgenentitystyles.generate:
+  path: '/admin/config/system/layoutgenentitystyles/manuel/generate'
   defaults:
     _title: 'Add scss import to theme'
     _controller: '\Drupal\layoutgenentitystyles\Controller\LayoutgenentitystylesController::ManuelGenerate'
   requirements:
-    _permission: 'access content'
+    _permission: 'administer layoutgenentitystyles configuration'
 
 layoutgenentitystyles.settings_form:
-  path: '/admin/config/system/layoutgenentitystyles'
+  path: '/admin/config/system/layoutgenentitystyles/config1'
   defaults:
     _title: 'layout generate entity styles settings'
     _form: 'Drupal\layoutgenentitystyles\Form\SettingsForm'
