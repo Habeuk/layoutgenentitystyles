@@ -10,8 +10,10 @@ use Drupal\Core\Plugin\Context\EntityContext;
 use Drupal\Core\Layout\LayoutInterface;
 use Drupal\Core\Plugin\PluginWithFormsInterface;
 use Drupal\Core\Plugin\PluginFormInterface;
-use phpDocumentor\Reflection\Types\This;
+use Drupal\Core\Entity\EntityTypeInterface;
 use Drupal\Core\Config\ConfigFactory;
+use Drupal\block_content\Entity\BlockContent;
+use Drupal\comment\Entity\Comment;
 
 class LayoutgenentitystylesServices extends ControllerBase {
   /**
@@ -44,15 +46,18 @@ class LayoutgenentitystylesServices extends ControllerBase {
   /**
    */
   protected $ConfigFactory;
+  private $container;
   
   function __construct(SectionStorageManager $SectionStorageManager, LoadStyleFromMod $LoadStyleFromMod, ConfigFactory $ConfigFactory) {
     $this->sectionStorageManager = $SectionStorageManager;
     $this->LoadStyleFromMod = $LoadStyleFromMod;
     $this->ConfigFactory = $ConfigFactory;
+    $this->container = \Drupal::getContainer();
   }
   
   /**
-   * On recupere la liste des plugins d'affichage d'entite.
+   * On recupere la liste des plugins d'affichage d'entite validé en funcion de
+   * la configurations.
    */
   protected function getListSectionStorages() {
     if (!$this->sectionStorages) {
@@ -63,6 +68,68 @@ class LayoutgenentitystylesServices extends ControllerBase {
        */
       $entity_type_id = 'entity_view_display';
       $this->sectionStorages = $this->entityTypeManager()->getStorage($entity_type_id)->loadByProperties();
+      //
+      $config = \Drupal::config('generate_style_theme.settings');
+      $conf = $config->getRawData();
+      $sectionStorages = [];
+      if ($conf['tab1']['use_domain']) {
+        // On doit recuperer les entites qui ont un contenu valide.
+        // le contenu doit avoir un chamaps field_access valide ou on doit
+        // cocher l'option pour tous.
+        if (\Drupal::moduleHandler()->moduleExists('domain')) {
+          $field_access = \Drupal\domain_access\DomainAccessManagerInterface::DOMAIN_ACCESS_FIELD;
+          $field_all_access = \Drupal\domain_access\DomainAccessManagerInterface::DOMAIN_ACCESS_ALL_FIELD;
+          /**
+           *
+           * @var \Drupal\domain\DomainNegotiator $domain
+           */
+          $domain = $this->container->get('domain.negotiator');
+          foreach ($this->sectionStorages as $key => $value) {
+            // dump($key, $value);
+            // la clee ($key) est composer de 3 elements.
+            [
+              $entity_type_id,
+              $entity_id,
+              $view_mode
+            ] = explode(".", $key);
+            /**
+             *
+             * @var \Drupal\Core\Entity\Sql\SqlContentEntityStorage $entity_type
+             */
+            $entity_type = $this->entityTypeManager()->getStorage($entity_type_id);
+            if ($entity_type->hasData()) {
+              // On cree une instance de la donnée afin de verifier si ce
+              // dernier contient un des champs valide.
+              // Cette logique de different n'est pas l'ideale, on devrait
+              // pouvoir determiner si l'entite dispose d'un bundle ou pas.
+              if ($entity_type_id != $entity_id) {
+                /**
+                 *
+                 * @var \Drupal\layout_builder\Entity\LayoutBuilderEntityViewDisplay $value
+                 */
+                $bundle_key = $entity_type->getEntityType()->getKey('bundle');
+                $entity = $entity_type->create([
+                  $bundle_key => $entity_id
+                ]);
+                if ($entity->hasField($field_access)) {
+                  // On verifie si on a au moins une donnée valide.
+                  $ids = $entity_type->getQuery()->condition($field_access, $domain->getActiveId())->condition($bundle_key, $entity_id)->execute();
+                  if ($ids)
+                    $sectionStorages[$key] = $value;
+                  elseif ($entity->hasField($field_all_access)) {
+                    $ids = $entity_type->getQuery()->condition($field_all_access, true)->condition($bundle_key, $entity_id)->execute();
+                    if ($ids) {
+                      $sectionStorages[$key] = $value;
+                      // dump($entity_id);
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+        $this->sectionStorages = $sectionStorages;
+      }
     }
     // dump($this->sectionStorages);
     // die();
@@ -82,6 +149,18 @@ class LayoutgenentitystylesServices extends ControllerBase {
     $this->addStylesToConfigTheme();
   }
   
+  function generateSTyleFromEntity(LayoutBuilderEntityViewDisplay $entity) {
+    $sections = $entity->getSections();
+    $section_storage = $entity->id();
+    $this->libraries[$section_storage] = $this->getLibraryForEachSections($sections);
+    $this->addStylesToConfigTheme();
+  }
+  
+  function generateStyleFromSection(array $sections, $section_storage) {
+    $this->libraries[$section_storage] = $this->getLibraryForEachSections($sections);
+    $this->addStylesToConfigTheme();
+  }
+  
   /**
    * Ajoute les styles dans la configuration du theme.
    */
@@ -97,6 +176,7 @@ class LayoutgenentitystylesServices extends ControllerBase {
     }
     $config->save();
     // dump($this->config($defaultThemeName . '.settings')->getRawData());
+    $this->messenger()->addStatus("Vous devez regenerer votre theme ");
   }
   
   function getLibraries() {
