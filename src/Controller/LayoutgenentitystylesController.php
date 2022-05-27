@@ -71,18 +71,20 @@ class LayoutgenentitystylesController extends ControllerBase {
     foreach ($librairies as $section_storage => $librairy) {
       $fgt = [];
       
-      foreach ($librairy['scss'] as $pluginId => $files) {
-        $fgt[] = [
-          '#type' => 'html_tag',
-          '#tag' => 'strong',
-          '#value' => $pluginId
-        ];
-        foreach ($files as $file) {
+      foreach ($librairy as $k => $librairy_style) {
+        foreach ($librairy_style as $pluginId => $files) {
           $fgt[] = [
             '#type' => 'html_tag',
-            '#tag' => 'div',
-            '#value' => $file
+            '#tag' => 'strong',
+            '#value' => $k . ' :: ' . $pluginId
           ];
+          foreach ($files as $file) {
+            $fgt[] = [
+              '#type' => 'html_tag',
+              '#tag' => 'div',
+              '#value' => $file
+            ];
+          }
         }
       }
       $items[] = [
@@ -118,73 +120,6 @@ class LayoutgenentitystylesController extends ControllerBase {
       '#type' => 'item',
       '#markup' => "Les styles ont été MAJ.",
       $lists
-    ];
-    //
-    return $build;
-  }
-  
-  /**
-   *
-   * @return string[]|\Drupal\Core\StringTranslation\TranslatableMarkup[]
-   */
-  public function ManuelGenerate0() {
-    $entity_type_id = 'entity_view_display';
-    $section_storage_type = 'defaults';
-    $section_storage = 'node.dynamic_home_page.default';
-    /**
-     *
-     * @var \Drupal\Core\Entity\Entity\EntityViewDisplay $ConfigEntityType
-     */
-    $ConfigEntityType = $this->entityTypeManager()->getStorage($entity_type_id);
-    
-    $entityView = $ConfigEntityType->load($section_storage);
-    
-    $contexts = [];
-    $contexts['display'] = EntityContext::fromEntity($entityView);
-    $this->sectionStorage = $this->sectionStorageManager->load($section_storage_type, $contexts);
-    $sections = $this->sectionStorage->getSections();
-    
-    $libraries = [
-      'scss' => [],
-      'js' => []
-    ];
-    
-    foreach ($sections as $section) {
-      /**
-       *
-       * @var \Drupal\formatage_models\Plugin\Layout\FormatageModels $plugin
-       */
-      $plugin = $this->getPluginForm($section->getLayout());
-      $library = $plugin->getPluginDefinition()->getLibrary();
-      if (!empty($library)) {
-        $subdir = '';
-        $path = $plugin->getPluginDefinition()->getPath();
-        if (strpos($path, "sections") !== FALSE)
-          $subdir = 'sections';
-        elseif (strpos($path, "teasers") !== FALSE)
-          $subdir = 'teasers';
-        //
-        $this->LoadStyleFromMod->getStyle($library, $subdir, $libraries);
-      }
-    }
-    
-    //
-    if (!empty($libraries)) {
-      $defaultThemeName = \Drupal::config('system.theme')->get('default');
-      // dump($defaultThemeName);
-      /**
-       *
-       * @var \Drupal\Core\Config\Config $config
-       */
-      $config = \Drupal::service('config.factory')->getEditable($defaultThemeName . '.settings');
-      $config->set('layoutgenentitystyles.scss.' . $section_storage, $libraries['scss']);
-      $config->set('layoutgenentitystyles.js.' . $section_storage, $libraries['js']);
-      // $config->delete();
-      $config->save();
-    }
-    $build['content'] = [
-      '#type' => 'item',
-      '#markup' => $this->t(' It works! ManuelGenerate ')
     ];
     //
     return $build;

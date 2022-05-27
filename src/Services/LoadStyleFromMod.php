@@ -58,7 +58,7 @@ class LoadStyleFromMod {
             if (str_contains($value, '.scss";')) {
               $scss[] = str_replace("import ", "@use ", $value);
             }
-            elseif (str_contains($value, 'import "')) {
+            elseif (str_contains($value, '.js";')) {
               $js[] = $value;
             }
           }

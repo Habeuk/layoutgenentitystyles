@@ -169,6 +169,10 @@ class LayoutgenentitystylesServices extends ControllerBase {
     $ModuleConf = \Drupal::config('generate_style_theme.settings')->getRawData();
     $conf = \Drupal\generate_style_theme\GenerateStyleTheme::getDynamicConfig($defaultThemeName, $ModuleConf);
     $config = $this->ConfigFactory->getEditable($conf['settings']);
+    // clean datas.
+    $config->set('layoutgenentitystyles.scss', []);
+    $config->set('layoutgenentitystyles.js', []);
+    $config->save();
     //
     foreach ($this->libraries as $section_storage => $libraries) {
       $config->set('layoutgenentitystyles.scss.' . $section_storage, $libraries['scss']);
@@ -176,7 +180,7 @@ class LayoutgenentitystylesServices extends ControllerBase {
     }
     $config->save();
     // dump($this->config($defaultThemeName . '.settings')->getRawData());
-    $this->messenger()->addStatus("Vous devez regenerer votre theme ");
+    $this->messenger()->addStatus(" Vous devez regenerer votre theme ");
   }
   
   function getLibraries() {
@@ -196,6 +200,11 @@ class LayoutgenentitystylesServices extends ControllerBase {
     return $this->sections[$section_storage];
   }
   
+  /**
+   * Retourne les libraries contenuu dans les sections.
+   *
+   * @param array $sections
+   */
   /**
    * Retourne les libraries contenuu dans les sections.
    *
@@ -222,14 +231,22 @@ class LayoutgenentitystylesServices extends ControllerBase {
         $plugin = $this->getPluginForm($section->getLayout());
         $library = $plugin->getPluginDefinition()->getLibrary();
         if (!empty($library)) {
-          $subdir = '';
+          $subdir = null;
           $path = $plugin->getPluginDefinition()->getPath();
-          if (strpos($path, "sections") !== FALSE)
+          if (str_contains($path, "/layouts/sections/menus"))
+            $subdir = 'sections/menus';
+          elseif (str_contains($path, "/layouts/sections"))
             $subdir = 'sections';
-          elseif (strpos($path, "teasers") !== FALSE)
+          elseif (str_contains($path, "/layouts/teasers"))
             $subdir = 'teasers';
-          //
-          $this->LoadStyleFromMod->getStyle($library, $subdir, $libraries);
+          else {
+            $this->messenger()->addWarning('path not found : ' . $path . ' :: ' . $plugin->getPluginId());
+          }
+          if ($subdir)
+            $this->LoadStyleFromMod->getStyle($library, $subdir, $libraries);
+        }
+        else {
+          $this->messenger()->addWarning(' Library not set :: ' . $plugin->getPluginId());
         }
       }
       catch (\Exception $e) {
