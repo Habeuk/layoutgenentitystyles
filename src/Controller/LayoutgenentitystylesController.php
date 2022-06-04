@@ -11,6 +11,8 @@ use Drupal\Core\Layout\LayoutInterface;
 use Drupal\Core\Plugin\PluginWithFormsInterface;
 use Drupal\Core\Plugin\PluginFormInterface;
 use Drupal\layoutgenentitystyles\Services\LayoutgenentitystylesServices;
+use Drupal\Component\Serialization\Json;
+use Symfony\Component\HttpFoundation\JsonResponse;
 
 /**
  * Returns responses for layout generate entity styles routes.
@@ -126,6 +128,16 @@ class LayoutgenentitystylesController extends ControllerBase {
   }
   
   /**
+   *
+   * @return string[]
+   */
+  public function ApiManuelGenerate($hostname) {
+    $this->LayoutgenentitystylesServices->domaine_id = $hostname;
+    $this->LayoutgenentitystylesServices->generateAllFilesStyles();
+    return $this->reponse($this->LayoutgenentitystylesServices->getLibraries());
+  }
+  
+  /**
    * Retrieves the plugin form for a given layout.
    *
    * @param \Drupal\Core\Layout\LayoutInterface $layout
@@ -144,6 +156,23 @@ class LayoutgenentitystylesController extends ControllerBase {
     }
     
     throw new \InvalidArgumentException(sprintf('The "%s" layout does not provide a configuration form', $layout->getPluginId()));
+  }
+  
+  /**
+   *
+   * @param array|string $configs
+   * @param number $code
+   * @param string $message
+   * @return \Symfony\Component\HttpFoundation\JsonResponse
+   */
+  protected function reponse($configs, $code = null, $message = null) {
+    if (!is_string($configs))
+      $configs = Json::encode($configs);
+    $reponse = new JsonResponse();
+    if ($code)
+      $reponse->setStatusCode($code, $message);
+    $reponse->setContent($configs);
+    return $reponse;
   }
   
 }
