@@ -187,9 +187,11 @@ class LayoutgenentitystylesServices extends ControllerBase {
   
   protected function loadAllViews() {
     $viewEntity = \Drupal::entityTypeManager()->getStorage('view');
+    
     $ids = $viewEntity->getQuery()->condition('status', true)->execute();
     if (!empty($ids)) {
       $views = $viewEntity->loadMultiple($ids);
+      // dump($views);
       foreach ($views as $k => $view) {
         
         /**
@@ -197,6 +199,9 @@ class LayoutgenentitystylesServices extends ControllerBase {
          * @var \Drupal\views\Entity\View $view
          */
         $build = $view->toArray();
+        if ($k == 'hero') {
+          // dump($build);
+        }
         if (!empty($build['display'])) {
           foreach ($build['display'] as $display_id => $value) {
             if (!empty($value['display_options']['style']['options']['layoutgenentitystyles_view'])) {
@@ -288,6 +293,8 @@ class LayoutgenentitystylesServices extends ControllerBase {
     // MAJ des fichiers scss et js du theme.
     if (!empty($defaultThemeName)) {
       $ids = $this->entityTypeManager()->getStorage('config_theme_entity')->getQuery()->condition('hostname', $defaultThemeName)->execute();
+      // dump($defaultThemeName);
+      // die();
       if (!empty($ids)) {
         $entity = ConfigThemeEntity::load(reset($ids));
         $GenerateStyleTheme = new GenerateStyleTheme($entity);
