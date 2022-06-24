@@ -88,6 +88,7 @@ class LayoutgenentitystylesServices extends ControllerBase {
        */
       $entity_type_id = 'entity_view_display';
       $this->sectionStorages = $this->entityTypeManager()->getStorage($entity_type_id)->loadByProperties();
+      
       //
       $conf = $this->getConfigFOR_generate_style_theme();
       $sectionStorages = [];
@@ -109,7 +110,7 @@ class LayoutgenentitystylesServices extends ControllerBase {
           
           foreach ($this->sectionStorages as $key => $value) {
             // dump($key, $value);
-            // la clee ($key) est composer de 3 elements.
+            // La clee ($key) est composer de 3 elements.
             [
               $entity_type_id,
               $entity_id,
@@ -122,7 +123,6 @@ class LayoutgenentitystylesServices extends ControllerBase {
             $entity_type = $this->entityTypeManager()->getStorage($entity_type_id);
             
             if ($entity_type->hasData()) {
-              
               // On cree une instance de la donnée afin de verifier si ce
               // dernier contient un des champs valide.
               // Cette logique de different n'est pas l'ideale, on devrait
@@ -224,13 +224,13 @@ class LayoutgenentitystylesServices extends ControllerBase {
       $sections = $this->getSectionsForEntityView($section_storage, $entityView);
       $this->libraries[$section_storage] = $this->getLibraryForEachSections($sections);
     }
+    $this->getCustomLibrary();
     $this->addStylesToConfigTheme(true);
   }
   
   /**
    * Ajout le style apres l'enregistrement d'une view style d'affichage
-   * disposant
-   * d'une library.
+   * disposant d'une library.
    *
    * @param string $library
    */
@@ -250,6 +250,63 @@ class LayoutgenentitystylesServices extends ControllerBase {
   }
   
   /**
+   * Ajout le style apres l'enregistrement d'une view style d'affichage
+   * disposant d'une library, ou tout autre module.
+   * SI on regenere les styles on a perd ces styles.
+   * On va les ajoutés dans une variable pour le momment, apres on verra comment
+   * les gerer de maniere dynamique.
+   * on le fait dans la config du module.
+   *
+   * @param string $library
+   */
+  function addStyleFromModule(string $library, $id, $display_id) {
+    [
+      $module,
+      $filename
+    ] = explode("/", $library);
+    if ($module && $filename) {
+      $this->libraries[$module . '.' . $id . '.' . $display_id] = [
+        'scss' => [],
+        'js' => []
+      ];
+      $this->LoadStyleFromMod->getStyleDefault($module, $filename, $this->libraries[$module . '.' . $id . '.' . $display_id]);
+      $this->addStylesToConfigTheme();
+      $this->saveCustomLibrary($library, $id, $display_id, $module, $filename);
+    }
+  }
+  
+  /**
+   * Sauvegarde un style custom de maniere permanente.
+   */
+  function saveCustomLibrary($library, $id, $display_id, $module, $filename) {
+    $config = $this->ConfigFactory->getEditable('layoutgenentitystyles.settings');
+    $list = $config->get('list_style');
+    if (!$list) {
+      $list = [];
+    }
+    $list[$module . '---' . $filename] = [
+      'id' => $id,
+      'display_id' => $display_id,
+      'library' => $library
+    ];
+    $config->set('list_style', $list);
+    $config->save();
+  }
+  
+  /**
+   * --
+   */
+  function getCustomLibrary() {
+    $config = $this->ConfigFactory->getEditable('layoutgenentitystyles.settings');
+    $list = $config->get('list_style');
+    if ($list) {
+      foreach ($list as $value) {
+        $this->addStyleFromView($value['library'], $value['id'], $value['display_id']);
+      }
+    }
+  }
+  
+  /**
    * Genere le style apres la sauvegarde d'un model par defaut de layout.
    *
    * @param LayoutBuilderEntityViewDisplay $entity
@@ -261,6 +318,11 @@ class LayoutgenentitystylesServices extends ControllerBase {
     $this->addStylesToConfigTheme();
   }
   
+  /**
+   *
+   * @param array $sections
+   * @param string $section_storage
+   */
   function generateStyleFromSection(array $sections, $section_storage) {
     $this->libraries[$section_storage] = $this->getLibraryForEachSections($sections);
     $this->addStylesToConfigTheme();
