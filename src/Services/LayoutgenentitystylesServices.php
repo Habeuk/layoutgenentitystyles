@@ -234,7 +234,7 @@ class LayoutgenentitystylesServices extends ControllerBase {
    *
    * @param string $library
    */
-  function addStyleFromView(string $library, $id, $display_id) {
+  function addStyleFromView(string $library, $id, $display_id, $subdir = '') {
     [
       $module,
       $filename
@@ -244,7 +244,7 @@ class LayoutgenentitystylesServices extends ControllerBase {
         'scss' => [],
         'js' => []
       ];
-      $this->LoadStyleFromMod->getStyleDefault($module, $filename, $this->libraries[$module . '.' . $id . '.' . $display_id]);
+      $this->LoadStyleFromMod->getStyleDefault($module, $filename, $this->libraries[$module . '.' . $id . '.' . $display_id], $subdir);
       $this->addStylesToConfigTheme();
     }
   }
@@ -259,7 +259,7 @@ class LayoutgenentitystylesServices extends ControllerBase {
    *
    * @param string $library
    */
-  function addStyleFromModule(string $library, $id, $display_id) {
+  function addStyleFromModule(string $library, $id, $display_id, $subdir = '') {
     [
       $module,
       $filename
@@ -269,16 +269,16 @@ class LayoutgenentitystylesServices extends ControllerBase {
         'scss' => [],
         'js' => []
       ];
-      $this->LoadStyleFromMod->getStyleDefault($module, $filename, $this->libraries[$module . '.' . $id . '.' . $display_id]);
+      $this->LoadStyleFromMod->getStyleDefault($module, $filename, $this->libraries[$module . '.' . $id . '.' . $display_id], $subdir);
       $this->addStylesToConfigTheme();
-      $this->saveCustomLibrary($library, $id, $display_id, $module, $filename);
+      $this->saveCustomLibrary($library, $id, $display_id, $module, $filename, $subdir);
     }
   }
   
   /**
    * Sauvegarde un style custom de maniere permanente.
    */
-  function saveCustomLibrary($library, $id, $display_id, $module, $filename) {
+  function saveCustomLibrary($library, $id, $display_id, $module, $filename, $subdir) {
     $config = $this->ConfigFactory->getEditable('layoutgenentitystyles.settings');
     $list = $config->get('list_style');
     if (!$list) {
@@ -287,7 +287,8 @@ class LayoutgenentitystylesServices extends ControllerBase {
     $list[$module . '---' . $filename] = [
       'id' => $id,
       'display_id' => $display_id,
-      'library' => $library
+      'library' => $library,
+      'subdir' => $subdir
     ];
     $config->set('list_style', $list);
     $config->save();
@@ -301,7 +302,8 @@ class LayoutgenentitystylesServices extends ControllerBase {
     $list = $config->get('list_style');
     if ($list) {
       foreach ($list as $value) {
-        $this->addStyleFromView($value['library'], $value['id'], $value['display_id']);
+        $subdir = isset($value['subdir']) ? $value['subdir'] : '';
+        $this->addStyleFromView($value['library'], $value['id'], $value['display_id'], $subdir);
       }
     }
   }

@@ -65,8 +65,8 @@ class LoadStyleFromMod {
    * @param string $module
    * @param string $filename
    */
-  function getStyleDefault(string $module, string $filename, array &$libraries = []) {
-    $file = DRUPAL_ROOT . '/' . $this->ExtensionPathResolver->getPath('module', $module) . '/wbu-atomique-theme/src/js/' . $filename . '.js';
+  function getStyleDefault(string $module, string $filename, array &$libraries = [], $subdir = '') {
+    $file = DRUPAL_ROOT . '/' . $this->ExtensionPathResolver->getPath('module', $module) . '/wbu-atomique-theme/src/js/' . $subdir . $filename . '.js';
     if (file_exists($file)) {
       $this->readFile($filename, $file, $libraries);
     }
@@ -75,9 +75,14 @@ class LoadStyleFromMod {
     }
   }
   
+  /**
+   *
+   * @param string $filename
+   * @param string $file
+   * @param string $libraries
+   */
   private function readFile($filename, $file, &$libraries) {
     $out = file($file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-    
     if (!empty($out)) {
       $scss = [];
       $js = [];

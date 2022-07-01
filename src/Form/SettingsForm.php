@@ -63,6 +63,11 @@ class SettingsForm extends ConfigFormBase {
           '#title' => 'id',
           '#default_value' => $style['id']
         ];
+        $form['list_style'][$module_name]['subdir'] = [
+          '#type' => 'textfield',
+          '#title' => 'subdir',
+          '#default_value' => isset($style['subdir']) ? $style['subdir'] : ''
+        ];
       }
     }
     //

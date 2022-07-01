@@ -1,0 +1,3 @@
+rebuild layoutgenentitystyles:
+  title: 'rebuild layoutgenentitystyles'
+  description: "Regenere les style d'un theme "

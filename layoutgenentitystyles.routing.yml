@@ -4,7 +4,7 @@ layoutgenentitystyles.generate:
     _title: 'Add scss import to theme'
     _controller: '\Drupal\layoutgenentitystyles\Controller\LayoutgenentitystylesController::ManuelGenerate'
   requirements:
-    _permission: 'administer layoutgenentitystyles configuration'
+    _permission: 'rebuild layoutgenentitystyles'
 
 layoutgenentitystyles.settings_form:
   path: '/admin/config/system/layoutgenentitystyles/config1'
