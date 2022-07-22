@@ -133,6 +133,7 @@ class LayoutgenentitystylesController extends ControllerBase {
    */
   public function ApiManuelGenerate($hostname) {
     $this->LayoutgenentitystylesServices->domaine_id = $hostname;
+    $this->LayoutgenentitystylesServices->shoMessage = false;
     $this->LayoutgenentitystylesServices->generateAllFilesStyles();
     return $this->reponse($this->LayoutgenentitystylesServices->getLibraries());
   }

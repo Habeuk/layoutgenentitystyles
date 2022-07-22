@@ -49,6 +49,18 @@ class LayoutgenentitystylesServices extends ControllerBase {
   protected $ConfigFactory;
   
   /**
+   * permet de determiner si l'utilisateur a le role administrator;
+   *
+   * @var boolean
+   */
+  private $isAdmin = false;
+  
+  /**
+   * Show message to regenerate theme.
+   */
+  public bool $shoMessage = true;
+  
+  /**
    *
    * @var array
    */
@@ -66,6 +78,12 @@ class LayoutgenentitystylesServices extends ControllerBase {
     $this->LoadStyleFromMod = $LoadStyleFromMod;
     $this->ConfigFactory = $ConfigFactory;
     $this->container = \Drupal::getContainer();
+  }
+  
+  private function checkIfUserIsAdministrator() {
+    if (in_array('administrator', $this->currentUser()->getRoles())) {
+      $this->isAdmin = true;
+    }
   }
   
   public function getConfigFOR_generate_style_theme() {
@@ -148,7 +166,7 @@ class LayoutgenentitystylesServices extends ControllerBase {
                       // dump($entity_id);
                     }
                   }
-                } // s'il n'a pas de champs de filtre alors son affichage doit
+                } // S'il n'a pas de champs de filtre alors son affichage doit,
                   // etre disponible pour tous les domaines.
                 else {
                   $sectionStorages[$key] = $value;
@@ -366,8 +384,8 @@ class LayoutgenentitystylesServices extends ControllerBase {
         $GenerateStyleTheme->jsFiles();
       }
     }
-    // dump($this->config($defaultThemeName . '.settings')->getRawData());
-    $this->messenger()->addStatus(" Vous devez regenerer votre theme ");
+    if ($this->shoMessage)
+      $this->messenger()->addStatus(" Vous devez regenerer votre theme ");
   }
   
   function getLibraries() {
@@ -426,18 +444,20 @@ class LayoutgenentitystylesServices extends ControllerBase {
           elseif (str_contains($path, "/layouts/pages"))
             $subdir = 'pages';
           else {
-            $this->messenger()->addWarning(' path not found : ' . $path . ' :: ' . $plugin->getPluginId());
+            if ($this->isAdmin)
+              $this->messenger()->addWarning(' path not found : ' . $path . ' :: ' . $plugin->getPluginId());
           }
           if ($subdir)
             $this->LoadStyleFromMod->getStyle($library, $subdir, $libraries);
         }
         else {
-          $this->messenger()->addWarning(' Library not set :: ' . $plugin->getPluginId());
+          if ($this->isAdmin)
+            $this->messenger()->addWarning(' Library not set :: ' . $plugin->getPluginId());
         }
       }
       catch (\Exception $e) {
-        
-        $this->messenger()->addWarning(" Ce plugin n'existe plus :  " . $section->getLayoutId(), true);
+        if ($this->isAdmin)
+          $this->messenger()->addWarning(" Ce plugin n'existe plus :  " . $section->getLayoutId(), true);
       }
     }
     // dump($libraries);
