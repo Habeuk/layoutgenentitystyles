@@ -99,6 +99,7 @@ class LayoutgenentitystylesServices extends ControllerBase {
    */
   protected function getListSectionStorages() {
     if (!$this->sectionStorages) {
+      
       /**
        * L'entite qui gere les affichages.
        *
@@ -134,6 +135,12 @@ class LayoutgenentitystylesServices extends ControllerBase {
               $entity_id,
               $view_mode
             ] = explode(".", $key);
+            
+            // pour les produits, on commence par quelques choses de statiques.
+            // if ($entity_id == 'comment') {
+            // $entity_type_id = 'commentaire_de_produit';
+            // }
+            
             /**
              *
              * @var \Drupal\Core\Entity\Sql\SqlContentEntityStorage $entity_type
@@ -173,7 +180,12 @@ class LayoutgenentitystylesServices extends ControllerBase {
                 }
               }
               else {
-                $entity = $entity_type->create();
+                $values = [];
+                // le type d'entité comment necessite un bundle.
+                if ($entity_id == 'comment') {
+                  $values['comment_type'] = 'commentaire_de_produit';
+                }
+                $entity = $entity_type->create($values);
                 if ($entity->hasField($field_access)) {
                   // On verifie si on a au moins une donnée valide.
                   $ids = $entity_type->getQuery()->condition($field_access, $this->domaine_id)->execute();
