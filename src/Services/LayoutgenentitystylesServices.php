@@ -118,6 +118,7 @@ class LayoutgenentitystylesServices extends ControllerBase {
         if (\Drupal::moduleHandler()->moduleExists('domain')) {
           $field_access = \Drupal\domain_access\DomainAccessManagerInterface::DOMAIN_ACCESS_FIELD;
           $field_all_access = \Drupal\domain_access\DomainAccessManagerInterface::DOMAIN_ACCESS_ALL_FIELD;
+          $connection = \Drupal::database();
           /**
            *
            * @var \Drupal\domain\DomainNegotiator $domain
@@ -149,9 +150,10 @@ class LayoutgenentitystylesServices extends ControllerBase {
             $entity_type = $this->entityTypeManager()->getStorage($entity_type_id);
             
             if ($entity_type->hasData()) {
+              
               // On cree une instance de la donnée afin de verifier si ce
               // dernier contient un des champs valide.
-              // Cette logique de different n'est pas l'ideale, on devrait
+              // Cette logique de differentiation n'est pas l'ideale, on devrait
               // pouvoir determiner si l'entite dispose d'un bundle ou pas.
               if ($entity_type_id != $entity_id) {
                 /**
@@ -163,15 +165,32 @@ class LayoutgenentitystylesServices extends ControllerBase {
                   $bundle_key => $entity_id
                 ]);
                 if ($entity->hasField($field_access)) {
+                  
                   // On verifie si on a au moins une donnée valide.
-                  $ids = $entity_type->getQuery()->condition($field_access, $this->domaine_id)->condition($bundle_key, $entity_id)->execute();
-                  if ($ids)
-                    $sectionStorages[$key] = $value;
-                  elseif ($entity->hasField($field_all_access)) {
-                    $ids = $entity_type->getQuery()->condition($field_all_access, true)->condition($bundle_key, $entity_id)->execute();
-                    if ($ids) {
+                  // On ne peut pas utilisé les entitées pour node, car le
+                  // module domain affectue un filtrage.
+                  if (str_contains($key, "node.")) {
+                    $query = $connection->select('node_field_data', 'nd');
+                    $query->addField('nd', 'nid');
+                    // $query->condition('nd.status', 1);
+                    $query->condition('nd.type', $entity_id);
+                    $query->addJoin('INNER', 'node__field_domain_access', 'fda', 'fda.entity_id=nd.nid');
+                    $query->condition('fda.field_domain_access_target_id', $this->domaine_id);
+                    $results = $query->execute()->fetchAll(\PDO::ATTR_ERRMODE);
+                    if (!empty($results)) {
                       $sectionStorages[$key] = $value;
-                      // dump($entity_id);
+                    }
+                  }
+                  else {
+                    $ids = $entity_type->getQuery()->condition($field_access, $this->domaine_id)->condition($bundle_key, $entity_id)->execute();
+                    if ($ids)
+                      $sectionStorages[$key] = $value;
+                    elseif ($entity->hasField($field_all_access)) {
+                      $ids = $entity_type->getQuery()->condition($field_all_access, true)->condition($bundle_key, $entity_id)->execute();
+                      if ($ids) {
+                        $sectionStorages[$key] = $value;
+                        // dump($entity_id);
+                      }
                     }
                   }
                 } // S'il n'a pas de champs de filtre alors son affichage doit,
@@ -251,10 +270,12 @@ class LayoutgenentitystylesServices extends ControllerBase {
   function generateAllFilesStyles() {
     $this->loadAllViews();
     $sectionStorages = $this->getListSectionStorages();
+    
     foreach ($sectionStorages as $section_storage => $entityView) {
       $sections = $this->getSectionsForEntityView($section_storage, $entityView);
       $this->libraries[$section_storage] = $this->getLibraryForEachSections($sections);
     }
+    
     $this->getCustomLibrary();
     $this->addStylesToConfigTheme(true);
   }
