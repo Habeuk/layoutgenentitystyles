@@ -23,43 +23,43 @@ class LayoutgenentitystylesServices extends ControllerBase {
    * @var array
    */
   protected $sectionStorages = null;
-  
+
   /**
    * The section storage manager.
    *
    * @var SectionStorageManager
    */
   protected $sectionStorageManager;
-  
+
   /**
    */
   protected $LoadStyleFromMod;
-  
+
   /**
    *
    * @var array
    */
   protected $sections = [];
-  
+
   /**
    */
   protected $libraries = [];
   /**
    */
   protected $ConfigFactory;
-  
+
   /**
    * permet de determiner si l'utilisateur a le role administrator;
    *
    * @var boolean
    */
   private $isAdmin = false;
-  
+
   /**
    * Show message to regenerate theme.
    */
   public bool $shoMessage = true;
-  
+
   /**
    *
    * @var array
@@ -72,34 +72,34 @@ class LayoutgenentitystylesServices extends ControllerBase {
   public $domaine_id = null;
   //
   private $container;
-  
+
   function __construct(SectionStorageManager $SectionStorageManager, LoadStyleFromMod $LoadStyleFromMod, ConfigFactory $ConfigFactory) {
     $this->sectionStorageManager = $SectionStorageManager;
     $this->LoadStyleFromMod = $LoadStyleFromMod;
     $this->ConfigFactory = $ConfigFactory;
     $this->container = \Drupal::getContainer();
   }
-  
+
   private function checkIfUserIsAdministrator() {
     if (in_array('administrator', $this->currentUser()->getRoles())) {
       $this->isAdmin = true;
     }
   }
-  
+
   public function getConfigFOR_generate_style_theme() {
     if (!$this->conf) {
       $this->conf = $this->ConfigFactory->get('generate_style_theme.settings')->getRawData();
     }
     return $this->conf;
   }
-  
+
   /**
    * On recupere la liste des plugins d'affichage d'entite validé en funcion de
    * la configurations.
    */
   protected function getListSectionStorages() {
     if (!$this->sectionStorages) {
-      
+
       /**
        * L'entite qui gere les affichages.
        *
@@ -107,7 +107,7 @@ class LayoutgenentitystylesServices extends ControllerBase {
        */
       $entity_type_id = 'entity_view_display';
       $this->sectionStorages = $this->entityTypeManager()->getStorage($entity_type_id)->loadByProperties();
-      
+
       //
       $conf = $this->getConfigFOR_generate_style_theme();
       $sectionStorages = [];
@@ -127,9 +127,9 @@ class LayoutgenentitystylesServices extends ControllerBase {
             $domain = $this->container->get('domain.negotiator');
             $this->domaine_id = $domain->getActiveId();
           }
-          
+
           foreach ($this->sectionStorages as $key => $value) {
-            
+
             // dump($key, $value);
             // La clee ($key) est composer de 3 elements.
             [
@@ -137,20 +137,20 @@ class LayoutgenentitystylesServices extends ControllerBase {
               $entity_id,
               $view_mode
             ] = explode(".", $key);
-            
+
             // pour les produits, on commence par quelques choses de statiques.
             // if ($entity_id == 'comment') {
             // $entity_type_id = 'commentaire_de_produit';
             // }
-            
+
             /**
              *
              * @var \Drupal\Core\Entity\Sql\SqlContentEntityStorage $entity_type
              */
             $entity_type = $this->entityTypeManager()->getStorage($entity_type_id);
-            
+
             if ($entity_type->hasData()) {
-              
+
               // On cree une instance de la donnée afin de verifier si ce
               // dernier contient un des champs valide.
               // Cette logique de differentiation n'est pas l'ideale, on devrait
@@ -165,7 +165,7 @@ class LayoutgenentitystylesServices extends ControllerBase {
                   $bundle_key => $entity_id
                 ]);
                 if ($entity->hasField($field_access)) {
-                  
+
                   // On verifie si on a au moins une donnée valide.
                   // On ne peut pas utilisé les entitées pour node, car le
                   // module domain affectue un filtrage.
@@ -234,16 +234,16 @@ class LayoutgenentitystylesServices extends ControllerBase {
     // die();
     return $this->sectionStorages;
   }
-  
+
   protected function loadAllViews() {
     $viewEntity = \Drupal::entityTypeManager()->getStorage('view');
-    
+
     $ids = $viewEntity->getQuery()->condition('status', true)->execute();
     if (!empty($ids)) {
       $views = $viewEntity->loadMultiple($ids);
       // dump($views);
       foreach ($views as $k => $view) {
-        
+
         /**
          *
          * @var \Drupal\views\Entity\View $view
@@ -262,7 +262,7 @@ class LayoutgenentitystylesServices extends ControllerBase {
       }
     }
   }
-  
+
   /**
    * Permet de generer tous les styles et de les ajouter dans la configuration
    * du theme actif.
@@ -270,16 +270,16 @@ class LayoutgenentitystylesServices extends ControllerBase {
   function generateAllFilesStyles() {
     $this->loadAllViews();
     $sectionStorages = $this->getListSectionStorages();
-    
+
     foreach ($sectionStorages as $section_storage => $entityView) {
       $sections = $this->getSectionsForEntityView($section_storage, $entityView);
       $this->libraries[$section_storage] = $this->getLibraryForEachSections($sections);
     }
-    
+
     $this->getCustomLibrary();
     $this->addStylesToConfigTheme(true);
   }
-  
+
   /**
    * Ajout le style apres l'enregistrement d'une view style d'affichage
    * disposant d'une library.
@@ -300,7 +300,7 @@ class LayoutgenentitystylesServices extends ControllerBase {
       $this->addStylesToConfigTheme();
     }
   }
-  
+
   /**
    * Ajout le style apres l'enregistrement d'une view style d'affichage
    * disposant d'une library, ou tout autre module.
@@ -326,7 +326,7 @@ class LayoutgenentitystylesServices extends ControllerBase {
       $this->saveCustomLibrary($library, $id, $display_id, $module, $filename, $subdir);
     }
   }
-  
+
   /**
    * Sauvegarde un style custom de maniere permanente.
    */
@@ -345,7 +345,7 @@ class LayoutgenentitystylesServices extends ControllerBase {
     $config->set('list_style', $list);
     $config->save();
   }
-  
+
   /**
    * --
    */
@@ -359,7 +359,7 @@ class LayoutgenentitystylesServices extends ControllerBase {
       }
     }
   }
-  
+
   /**
    * Genere le style apres la sauvegarde d'un model par defaut de layout.
    *
@@ -371,7 +371,7 @@ class LayoutgenentitystylesServices extends ControllerBase {
     $this->libraries[$section_storage] = $this->getLibraryForEachSections($sections);
     $this->addStylesToConfigTheme();
   }
-  
+
   /**
    *
    * @param array $sections
@@ -381,7 +381,7 @@ class LayoutgenentitystylesServices extends ControllerBase {
     $this->libraries[$section_storage] = $this->getLibraryForEachSections($sections);
     $this->addStylesToConfigTheme();
   }
-  
+
   /**
    * Ajoute les styles dans la configuration du theme.
    */
@@ -421,11 +421,11 @@ class LayoutgenentitystylesServices extends ControllerBase {
     if ($this->shoMessage)
       $this->messenger()->addStatus(" Vous devez regenerer votre theme ");
   }
-  
+
   function getLibraries() {
     return $this->libraries;
   }
-  
+
   /**
    * Recupere les sections pour un model d'affichage données.
    */
@@ -438,7 +438,7 @@ class LayoutgenentitystylesServices extends ControllerBase {
     }
     return $this->sections[$section_storage];
   }
-  
+
   /**
    * Retourne les libraries contenuu dans les sections.
    *
@@ -449,14 +449,14 @@ class LayoutgenentitystylesServices extends ControllerBase {
       'scss' => [],
       'js' => []
     ];
-    
+
     foreach ($sections as $section) {
       // dump($section);
       /**
        *
        * @var \Drupal\layout_builder\Section $section
        */
-      
+
       /**
        *
        * @var \Drupal\formatage_models\Plugin\Layout\FormatageModels $plugin
@@ -477,6 +477,8 @@ class LayoutgenentitystylesServices extends ControllerBase {
             $subdir = 'sections/headers';
           elseif (str_contains($path, "/layouts/pages"))
             $subdir = 'pages';
+          elseif (str_contains($path, "/layouts/headers"))
+            $subdir = 'headers';
           else {
             if ($this->isAdmin)
               $this->messenger()->addWarning(' path not found : ' . $path . ' :: ' . $plugin->getPluginId());
@@ -497,13 +499,13 @@ class LayoutgenentitystylesServices extends ControllerBase {
     // dump($libraries);
     return $libraries;
   }
-  
+
   /**
    * Retrieves the plugin form for a given layout.
    *
    * @param \Drupal\Core\Layout\LayoutInterface $layout
    *        The layout plugin.
-   *        
+   *
    * @return \Drupal\Core\Plugin\PluginFormInterface The plugin form for the
    *         layout.
    */
@@ -511,12 +513,12 @@ class LayoutgenentitystylesServices extends ControllerBase {
     if ($layout instanceof PluginWithFormsInterface) {
       return $this->pluginFormFactory->createInstance($layout, 'configure');
     }
-    
+
     if ($layout instanceof PluginFormInterface) {
       return $layout;
     }
-    
+
     throw new \InvalidArgumentException(sprintf('The "%s" layout does not provide a configuration form', $layout->getPluginId()));
   }
-  
+
 }
