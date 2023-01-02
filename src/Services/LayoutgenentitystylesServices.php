@@ -107,7 +107,6 @@ class LayoutgenentitystylesServices extends ControllerBase {
        */
       $entity_type_id = 'entity_view_display';
       $this->sectionStorages = $this->entityTypeManager()->getStorage($entity_type_id)->loadByProperties();
-      
       //
       $conf = $this->getConfigFOR_generate_style_theme();
       $sectionStorages = [];
@@ -448,6 +447,7 @@ class LayoutgenentitystylesServices extends ControllerBase {
    * @param array $sections
    */
   protected function getLibraryForEachSections(array $sections) {
+    $this->checkIfUserIsAdministrator();
     $libraries = [
       'scss' => [],
       'js' => []
@@ -470,6 +470,7 @@ class LayoutgenentitystylesServices extends ControllerBase {
         if (!empty($library)) {
           $subdir = null;
           $path = $plugin->getPluginDefinition()->getPath();
+          
           if (str_contains($path, "/layouts/sections/menus"))
             $subdir = 'sections/menus';
           elseif (str_contains($path, "/layouts/sections"))
@@ -482,6 +483,8 @@ class LayoutgenentitystylesServices extends ControllerBase {
             $subdir = 'pages';
           elseif (str_contains($path, "/layouts/headers"))
             $subdir = 'headers';
+          elseif (str_contains($path, "/layouts/footers"))
+            $subdir = 'footers';
           else {
             if ($this->isAdmin)
               $this->messenger()->addWarning(' path not found : ' . $path . ' :: ' . $plugin->getPluginId());

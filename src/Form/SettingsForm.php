@@ -34,6 +34,28 @@ class SettingsForm extends ConfigFormBase {
    */
   public function buildForm(array $form, FormStateInterface $form_state) {
     $config = $this->config('layoutgenentitystyles.settings')->getRawData();
+    //
+    $form['enabled_auto_generate'] = [
+      '#type' => 'checkbox',
+      '#title' => "activé l'autoregenration des fichiers scss & js ",
+      '#default_value' => isset($config['enabled_auto_generate']) ? $config['enabled_auto_generate'] : 0
+    ];
+    //
+    $form['entity_auto_generate'] = [
+      '#type' => 'details',
+      '#title' => 'Contient les entites qui doivent etre automatiquement genere',
+      '#open' => false,
+      '#tree' => true
+    ];
+    $entities = \Drupal::entityTypeManager()->getDefinitions();
+    foreach ($entities as $entity) {
+      $form['entity_auto_generate'][$entity->id()] = [
+        '#type' => 'checkbox',
+        '#title' => $entity->getLabel(),
+        '#default_value' => isset($config['list_entities.' . $entity->id()]) ? $config['list_entities.' . $entity->id()] : 0
+      ];
+    }
+    //
     $form['list_style'] = [
       '#type' => 'details',
       '#title' => 'Contient les styles ajouter par des modules',
@@ -79,7 +101,11 @@ class SettingsForm extends ConfigFormBase {
    * {@inheritdoc}
    */
   public function submitForm(array &$form, FormStateInterface $form_state) {
-    $this->config('layoutgenentitystyles.settings')->set('list_style', $form_state->getValue('list_style'))->save();
+    $config = $this->config('layoutgenentitystyles.settings');
+    $config->set('list_style', $form_state->getValue('list_style'));
+    $config->set('entity_auto_generate', $form_state->getValue('entity_auto_generate'));
+    $config->set('enabled_auto_generate', $form_state->getValue('enabled_auto_generate'));
+    $config->save();
     parent::submitForm($form, $form_state);
   }
   

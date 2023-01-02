@@ -9,25 +9,24 @@
  * This file is no longer required in Drupal 8.
  * @see https://www.drupal.org/node/2217931
  */
-use Stephane888\Debug\debugLog;
-use Drupal\layout_builder\Entity\LayoutBuilderEntityViewDisplay;
-use Drupal\node\Entity\Node;
+use Stephane888\Debug\Repositories\ConfigDrupal;
 
 /**
  * *
  * hook_ENTITY_TYPE_presave
  */
 function layoutgenentitystyles_entity_view_display_presave($entity) {
-  // \Drupal::messenger()->addStatus(" creation des fichiers via
-  // layoutgenentitystyles_entity_view_display_presave ");
-  if (method_exists($entity, 'getSections')) {
-    /**
-     *
-     * @var \Drupal\layoutgenentitystyles\Services\LayoutgenentitystylesServices $style
-     */
-    $style = \Drupal::getContainer()->get('layoutgenentitystyles.add.style.theme');
-    $style->generateSTyleFromEntity($entity);
-    // dump($style->getLibraries());
+  $configs = ConfigDrupal::config('layoutgenentitystyles.settings');
+  if ($configs['enabled_auto_generate']) {
+    \Drupal::messenger()->addWarning("alert layoutgenentitystyles_entity_view_display_presave", true);
+    if (method_exists($entity, 'getSections')) {
+      /**
+       *
+       * @var \Drupal\layoutgenentitystyles\Services\LayoutgenentitystylesServices $style
+       */
+      $style = \Drupal::getContainer()->get('layoutgenentitystyles.add.style.theme');
+      $style->generateSTyleFromEntity($entity);
+    }
   }
 }
 
@@ -37,31 +36,29 @@ function layoutgenentitystyles_entity_view_display_presave($entity) {
  * hook_ENTITY_TYPE_presave
  */
 function layoutgenentitystyles_entity_presave($entity) {
-  // \Drupal::messenger()->addStatus(" crview_display_eation des fichiers via
-  // layoutgenentitystyles_entity_view_display_presave ");
-  if (method_exists($entity, 'hasField'))
-    if ($entity->hasField('layout_builder__layout')) {
-      $sections = [];
-      $listSetions = $entity->get('layout_builder__layout')->getValue();
-      $section_storage = $entity->getEntityTypeId() . '.' . $entity->bundle() . '.' . $entity->id();
-      // dump($entity->getEntityTypeId());
-      // dump($entity->bundle());
-      // dump($entity->id());
-      // dump($entity->);
-      foreach ($listSetions as $value) {
-        $sections[] = reset($value);
+  $configs = ConfigDrupal::config('layoutgenentitystyles.settings');
+  if ($configs['enabled_auto_generate']) {
+    \Drupal::messenger()->addWarning("alert layoutgenentitystyles_entity_presave", true);
+    if (method_exists($entity, 'hasField'))
+      if ($entity->hasField('layout_builder__layout')) {
+        $sections = [];
+        $listSetions = $entity->get('layout_builder__layout')->getValue();
+        $section_storage = $entity->getEntityTypeId() . '.' . $entity->bundle() . '.' . $entity->id();
+        // dump($entity->getEntityTypeId());
+        // dump($entity->bundle());
+        // dump($entity->id());
+        // dump($entity->);
+        foreach ($listSetions as $value) {
+          $sections[] = reset($value);
+        }
+        /**
+         *
+         * @var \Drupal\layoutgenentitystyles\Services\LayoutgenentitystylesServices $style
+         */
+        $style = \Drupal::getContainer()->get('layoutgenentitystyles.add.style.theme');
+        $style->generateStyleFromSection($sections, $section_storage);
+        // dump($style->getLibraries());
       }
-      /**
-       *
-       * @var \Drupal\layoutgenentitystyles\Services\LayoutgenentitystylesServices $style
-       */
-      $style = \Drupal::getContainer()->get('layoutgenentitystyles.add.style.theme');
-      $style->generateStyleFromSection($sections, $section_storage);
-      // dump($style->getLibraries());
-    }
-  
-  // si on modifie le layout de rendu par defaut surcharger, la valeur doit etre
-  // dans un champs.
-  // dump($entity);
+  }
 }
 
