@@ -17,7 +17,7 @@ use Stephane888\Debug\Repositories\ConfigDrupal;
  */
 function layoutgenentitystyles_entity_view_display_presave($entity) {
   $configs = ConfigDrupal::config('layoutgenentitystyles.settings');
-  if ($configs['enabled_auto_generate']) {
+  if (!empty($configs['enabled_auto_generate'])) {
     \Drupal::messenger()->addWarning("alert layoutgenentitystyles_entity_view_display_presave", true);
     if (method_exists($entity, 'getSections')) {
       /**
@@ -37,7 +37,7 @@ function layoutgenentitystyles_entity_view_display_presave($entity) {
  */
 function layoutgenentitystyles_entity_presave($entity) {
   $configs = ConfigDrupal::config('layoutgenentitystyles.settings');
-  if ($configs['enabled_auto_generate']) {
+  if (!empty($configs['enabled_auto_generate'])) {
     \Drupal::messenger()->addWarning("alert layoutgenentitystyles_entity_presave", true);
     if (method_exists($entity, 'hasField'))
       if ($entity->hasField('layout_builder__layout')) {
