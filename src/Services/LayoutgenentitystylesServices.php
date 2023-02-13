@@ -14,7 +14,6 @@ use Drupal\Core\Entity\EntityTypeInterface;
 use Drupal\Core\Config\ConfigFactory;
 use Drupal\generate_style_theme\Entity\ConfigThemeEntity;
 use Drupal\generate_style_theme\Services\GenerateStyleTheme;
-use phpDocumentor\Reflection\Types\This;
 
 class LayoutgenentitystylesServices extends ControllerBase {
   /**
