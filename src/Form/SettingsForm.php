@@ -35,10 +35,16 @@ class SettingsForm extends ConfigFormBase {
   public function buildForm(array $form, FormStateInterface $form_state) {
     $config = $this->config('layoutgenentitystyles.settings')->getRawData();
     //
-    $form['enabled_auto_generate'] = [
+    $form['enabled_auto_generate_config'] = [
       '#type' => 'checkbox',
-      '#title' => "activé l'autoregenration des fichiers scss & js ",
-      '#default_value' => isset($config['enabled_auto_generate']) ? $config['enabled_auto_generate'] : 0
+      '#title' => "activé l'autoregenration des fichiers scss & js pour les entites de onfigurations ",
+      '#default_value' => isset($config['enabled_auto_generate_config']) ? $config['enabled_auto_generate_config'] : 0
+    ];
+    //
+    $form['enabled_auto_generate_entity'] = [
+      '#type' => 'checkbox',
+      '#title' => "activé l'autoregenration des fichiers scss & js pour les entites surcharger",
+      '#default_value' => isset($config['enabled_auto_generate_entity']) ? $config['enabled_auto_generate_entity'] : 1
     ];
     //
     $form['entity_auto_generate'] = [
@@ -47,6 +53,7 @@ class SettingsForm extends ConfigFormBase {
       '#open' => false,
       '#tree' => true
     ];
+    
     $entities = \Drupal::entityTypeManager()->getDefinitions();
     foreach ($entities as $entity) {
       $form['entity_auto_generate'][$entity->id()] = [
@@ -104,7 +111,8 @@ class SettingsForm extends ConfigFormBase {
     $config = $this->config('layoutgenentitystyles.settings');
     $config->set('list_style', $form_state->getValue('list_style'));
     $config->set('entity_auto_generate', $form_state->getValue('entity_auto_generate'));
-    $config->set('enabled_auto_generate', $form_state->getValue('enabled_auto_generate'));
+    $config->set('enabled_auto_generate_config', $form_state->getValue('enabled_auto_generate_config'));
+    $config->set('enabled_auto_generate_entity', $form_state->getValue('enabled_auto_generate_entity'));
     $config->save();
     parent::submitForm($form, $form_state);
   }

@@ -128,7 +128,7 @@ class LayoutgenentitystylesServices extends ControllerBase {
           
           foreach ($this->sectionStorages as $key => $value) {
             
-            // dump($key, $value);
+            // dump($key);
             // La clee ($key) est composer de 3 elements.
             [
               $entity_type_id,
@@ -275,7 +275,17 @@ class LayoutgenentitystylesServices extends ControllerBase {
     }
     
     $this->getCustomLibrary();
-    $this->addStylesToConfigTheme(true);
+    // La il ya un soucis, il faut determiner si elle detruit les styles,
+    // ajoutées par la configuration surcharger.
+    /**
+     * Effectivement, elles sont detruite les styles envoyés par l'autre
+     * mecanisme.
+     */
+    // On masque pour le moment.
+    // $this->addStylesToConfigTheme(true);
+    // il faudra soit separer les sauvegarde au niveau du theme, et ajouté un
+    // moyen qui permet de mettre à jours les configirations surcharger.
+    $this->addStylesToConfigTheme();
   }
   
   /**
