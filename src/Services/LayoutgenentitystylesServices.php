@@ -77,6 +77,7 @@ class LayoutgenentitystylesServices extends ControllerBase {
     $this->LoadStyleFromMod = $LoadStyleFromMod;
     $this->ConfigFactory = $ConfigFactory;
     $this->container = \Drupal::getContainer();
+    $this->checkIfUserIsAdministrator();
   }
   
   private function checkIfUserIsAdministrator() {
@@ -233,6 +234,9 @@ class LayoutgenentitystylesServices extends ControllerBase {
     return $this->sectionStorages;
   }
   
+  /**
+   * Pemet de charger les librairies ajoutées au niveaux des vues.
+   */
   protected function loadAllViews() {
     $viewEntity = \Drupal::entityTypeManager()->getStorage('view');
     
@@ -312,9 +316,9 @@ class LayoutgenentitystylesServices extends ControllerBase {
   /**
    * Ajout le style apres l'enregistrement d'une view style d'affichage
    * disposant d'une library, ou tout autre module.
-   * SI on regenere les styles on a perd ces styles.
-   * On va les ajoutés dans une variable pour le momment, apres on verra comment
-   * les gerer de maniere dynamique.
+   * SI on regenere les styles on a perd ces styles. ( correction baique: On va
+   * les ajoutés dans une variable de configuration pour le momment, apres on
+   * verra comment les gerer de maniere dynamique.)
    * on le fait dans la config du module.
    *
    * @param string $library
@@ -337,6 +341,11 @@ class LayoutgenentitystylesServices extends ControllerBase {
   
   /**
    * Sauvegarde un style custom de maniere permanente.
+   * Le but de cette fonction est d'eviter de perdre les librairies lors de la
+   * regeneration des styles.
+   * Mais cette approche devrai etre ameliorer ou trouver une autre logique.
+   *
+   * @deprecated 2x
    */
   function saveCustomLibrary($library, $id, $display_id, $module, $filename, $subdir) {
     $config = $this->ConfigFactory->getEditable('layoutgenentitystyles.settings');
@@ -369,15 +378,50 @@ class LayoutgenentitystylesServices extends ControllerBase {
   }
   
   /**
-   * Genere le style apres la sauvegarde d'un model par defaut de layout.
+   * Genere le style (à partir de la configuration du layout) apres la
+   * sauvegarde d'un model de layout.
    *
    * @param LayoutBuilderEntityViewDisplay $entity
    */
   function generateSTyleFromEntity(LayoutBuilderEntityViewDisplay $entity) {
+    if ($this->isAdmin)
+      \Drupal::messenger()->addStatus(" Les styles (scss/js) maj via l'entité de configuration ", true);
     $sections = $entity->getSections();
     $section_storage = $entity->id();
     $this->libraries[$section_storage] = $this->getLibraryForEachSections($sections);
     $this->addStylesToConfigTheme();
+  }
+  
+  /**
+   * Permet de generer les styles à partir de la configuration des champs.
+   * Explication :
+   * on souhaite facilement afficher les champs tels que les bouttons de RX, des
+   * champs complexes du profil CV et autres;
+   * Pour facilier cette approche on ira du coté des champs, definir des champs
+   * complexe permettant de sauvegarde plusieurs données.
+   * Nous souhaitons egalement garder la logique de generation des styles.
+   * On definit une logique :
+   * Dans la configuration du formatter de champs, on doit ajouter une entrée
+   * "layoutgenentitystyles_view". Elle contient la librairie qui serra
+   * automatiquement importer.
+   *
+   * @param LayoutBuilderEntityViewDisplay $entity
+   */
+  function generateStyleFromFieldConfigDisplay(LayoutBuilderEntityViewDisplay $entity) {
+    if ($this->isAdmin)
+      \Drupal::messenger()->addStatus(" Les styles (scss/js) maj via la configuration d'affichage du champs ", true);
+    $sections = $entity->getSections();
+    foreach ($sections as $section) {
+      $components = $section->getComponents();
+      foreach ($components as $component) {
+        $ar = $component->toArray();
+        if (!empty($ar['configuration']['formatter']['settings']['layoutgenentitystyles_view'])) {
+          $id = \str_replace(".", "__", $ar['configuration']['id']);
+          $display_id = 'default';
+          $this->addStyleFromModule($ar['configuration']['formatter']['settings']['layoutgenentitystyles_view'], $id, $display_id, 'fields');
+        }
+      }
+    }
   }
   
   /**
@@ -386,6 +430,8 @@ class LayoutgenentitystylesServices extends ControllerBase {
    * @param string $section_storage
    */
   function generateStyleFromSection(array $sections, $section_storage) {
+    if ($this->isAdmin)
+      \Drupal::messenger()->addStatus(" Les styles (scss/js) maj via une entité surchargée ", true);
     $this->libraries[$section_storage] = $this->getLibraryForEachSections($sections);
     $this->addStylesToConfigTheme();
   }

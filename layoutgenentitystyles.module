@@ -10,15 +10,30 @@
  * @see https://www.drupal.org/node/2217931
  */
 use Stephane888\Debug\Repositories\ConfigDrupal;
+use Drupal\Core\Entity\EntityInterface;
+use Drupal\Core\Entity\Display\EntityViewDisplayInterface;
+
+/**
+ * Permet d'ajouter les styles à partir des champs.s
+ *
+ * @param EntityInterface $entity
+ */
+function _layoutgenentitystyles_add_style_from_fields(EntityViewDisplayInterface $entity) {
+  dump($entity->toArray());
+  $fields = $entity->getComponents();
+  dump($fields);
+  foreach ($fields as $feld_name => $field) {
+    ;
+  }
+}
 
 /**
  * *
  * hook_ENTITY_TYPE_presave
  */
-function layoutgenentitystyles_entity_view_display_presave($entity) {
+function layoutgenentitystyles_entity_view_display_presave(EntityInterface $entity) {
   $configs = ConfigDrupal::config('layoutgenentitystyles.settings');
   if (!empty($configs['enabled_auto_generate_config'])) {
-    \Drupal::messenger()->addStatus("Les styles (scss/js) maj via l'entité de configuration", true);
     if (method_exists($entity, 'getSections')) {
       /**
        *
@@ -28,26 +43,30 @@ function layoutgenentitystyles_entity_view_display_presave($entity) {
       $style->generateSTyleFromEntity($entity);
     }
   }
+  if (!empty($configs['enabled_auto_generate_fieldconfig'])) {
+    if (method_exists($entity, 'getSections')) {
+      /**
+       *
+       * @var \Drupal\layoutgenentitystyles\Services\LayoutgenentitystylesServices $style
+       */
+      $style = \Drupal::getContainer()->get('layoutgenentitystyles.add.style.theme');
+      $style->generateStyleFromFieldConfigDisplay($entity);
+    }
+  }
 }
 
-//
 /**
- * *
  * hook_ENTITY_TYPE_presave
  */
-function layoutgenentitystyles_entity_presave($entity) {
+function layoutgenentitystyles_entity_presave(EntityInterface $entity) {
   $configs = ConfigDrupal::config('layoutgenentitystyles.settings');
   if (!empty($configs['enabled_auto_generate_entity'])) {
-    \Drupal::messenger()->addStatus("Les styles (scss/js) maj via une entité surchargée", true);
     if (method_exists($entity, 'hasField'))
       if ($entity->hasField('layout_builder__layout')) {
         $sections = [];
         $listSetions = $entity->get('layout_builder__layout')->getValue();
         $section_storage = $entity->getEntityTypeId() . '.' . $entity->bundle() . '.' . $entity->id();
-        // dump($section_storage);
-        // dump($entity->bundle());
-        // dump($entity->id());
-        // dump($entity->);
+        
         foreach ($listSetions as $value) {
           $sections[] = reset($value);
         }
@@ -57,7 +76,6 @@ function layoutgenentitystyles_entity_presave($entity) {
          */
         $style = \Drupal::getContainer()->get('layoutgenentitystyles.add.style.theme');
         $style->generateStyleFromSection($sections, $section_storage);
-        // dump($style->getLibraries());
       }
   }
 }

@@ -38,7 +38,13 @@ class SettingsForm extends ConfigFormBase {
     $form['enabled_auto_generate_config'] = [
       '#type' => 'checkbox',
       '#title' => "activé l'autoregenration des fichiers scss & js pour les entites de onfigurations ",
-      '#default_value' => isset($config['enabled_auto_generate_config']) ? $config['enabled_auto_generate_config'] : 0
+      '#default_value' => isset($config['enabled_auto_generate_config']) ? $config['enabled_auto_generate_config'] : 1
+    ];
+    //
+    $form['enabled_auto_generate_fieldconfig'] = [
+      '#type' => 'checkbox',
+      '#title' => "activé l'autoregenration des fichiers scss & js pour l'affichage des champss ",
+      '#default_value' => isset($config['enabled_auto_generate_fieldconfig']) ? $config['enabled_auto_generate_fieldconfig'] : 1
     ];
     //
     $form['enabled_auto_generate_entity'] = [
@@ -69,13 +75,12 @@ class SettingsForm extends ConfigFormBase {
       '#open' => false,
       '#tree' => true
     ];
-    //
     if (!empty($config['list_style'])) {
       foreach ($config['list_style'] as $module_name => $style) {
         $form['list_style'][$module_name] = [
           '#type' => 'details',
-          '#title' => $module_name,
-          '#open' => true
+          '#title' => $module_name . ' => ' . $style['library'],
+          '#open' => false
         ];
         $form['list_style'][$module_name]['library'] = [
           '#type' => 'textfield',
@@ -113,6 +118,7 @@ class SettingsForm extends ConfigFormBase {
     $config->set('entity_auto_generate', $form_state->getValue('entity_auto_generate'));
     $config->set('enabled_auto_generate_config', $form_state->getValue('enabled_auto_generate_config'));
     $config->set('enabled_auto_generate_entity', $form_state->getValue('enabled_auto_generate_entity'));
+    $config->set('enabled_auto_generate_fieldconfig', $form_state->getValue('enabled_auto_generate_fieldconfig'));
     $config->save();
     parent::submitForm($form, $form_state);
   }
