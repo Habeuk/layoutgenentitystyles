@@ -44,7 +44,7 @@ function layoutgenentitystyles_entity_presave($entity) {
         $sections = [];
         $listSetions = $entity->get('layout_builder__layout')->getValue();
         $section_storage = $entity->getEntityTypeId() . '.' . $entity->bundle() . '.' . $entity->id();
-        dump($section_storage);
+        // dump($section_storage);
         // dump($entity->bundle());
         // dump($entity->id());
         // dump($entity->);
