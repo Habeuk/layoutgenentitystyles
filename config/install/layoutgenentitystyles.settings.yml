@@ -1,0 +1,4 @@
+langcode: 'en'
+enabled_auto_generate_config: 1
+enabled_auto_generate_fieldconfig: 1
+enabled_auto_generate_entity: 1
