@@ -48,6 +48,17 @@ class LayoutgenentitystylesServices extends ControllerBase {
   protected $ConfigFactory;
   
   /**
+   * Contient la liste des entites donc on va rechercher s'il possede les
+   * données pour le champs "layout_builder__layout"
+   * Pour le moment on fait uniquement pour l'ent
+   *
+   * @var array
+   */
+  protected $entitiesListLayoutBuilderLayout = [
+    'cv_entity'
+  ];
+  
+  /**
    * permet de determiner si l'utilisateur a le role administrator;
    *
    * @var boolean
@@ -277,7 +288,9 @@ class LayoutgenentitystylesServices extends ControllerBase {
       $sections = $this->getSectionsForEntityView($section_storage, $entityView);
       $this->libraries[$section_storage] = $this->getLibraryForEachSections($sections);
     }
-    
+    // On ajoute
+    $this->addStyleFromEntitiesOverride();
+    //
     $this->getCustomLibrary();
     // La il ya un soucis, il faut determiner si elle detruit les styles,
     // ajoutées par la configuration surcharger.
@@ -290,6 +303,46 @@ class LayoutgenentitystylesServices extends ControllerBase {
     // il faudra soit separer les sauvegarde au niveau du theme, et ajouté un
     // moyen qui permet de mettre à jours les configirations surcharger.
     $this->addStylesToConfigTheme();
+  }
+  
+  /**
+   * --
+   */
+  protected function addStyleFromEntitiesOverride() {
+    $conf = $this->getConfigFOR_generate_style_theme();
+    if ($conf['tab1']['use_domain']) {
+      if (\Drupal::moduleHandler()->moduleExists('domain')) {
+        $field_access = \Drupal\domain_access\DomainAccessManagerInterface::DOMAIN_ACCESS_FIELD;
+        foreach ($this->entitiesListLayoutBuilderLayout as $entity_type_id) {
+          /**
+           *
+           * @var \Drupal\buildercv\Entity\CvEntity $entity
+           */
+          $query = $this->entityTypeManager()->getStorage($entity_type_id)->getQuery();
+          $query->condition('layout_builder__layout', '', '<>');
+          $query->condition($field_access, $this->domaine_id);
+          $results = $query->execute();
+          if (!empty($results)) {
+            $entities = $this->entityTypeManager()->getStorage($entity_type_id)->loadMultiple($results);
+            foreach ($entities as $content) {
+              /**
+               *
+               * @var \Drupal\buildercv\Entity\CvEntity $content
+               */
+              /**
+               * *
+               *
+               * @var \Drupal\layout_builder\Field\LayoutSectionItemList $LayoutField
+               */
+              $LayoutField = $content->get('layout_builder__layout');
+              $sections = $LayoutField->getSections();
+              $section_storage = $entity_type_id . '.' . $entity_type_id . '.' . $content->id();
+              $this->generateStyleFromSection($sections, $section_storage);
+            }
+          }
+        }
+      }
+    }
   }
   
   /**
@@ -428,6 +481,8 @@ class LayoutgenentitystylesServices extends ControllerBase {
    *
    * @param array $sections
    * @param string $section_storage
+   *        key of entity (doit contenir deux point par example
+   *        cv_entity.cv_entity.150
    */
   function generateStyleFromSection(array $sections, $section_storage) {
     if ($this->isAdmin)
