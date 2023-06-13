@@ -262,9 +262,7 @@ class LayoutgenentitystylesServices extends ControllerBase {
          * @var \Drupal\views\Entity\View $view
          */
         $build = $view->toArray();
-        if ($k == 'hero') {
-          // dump($build);
-        }
+        
         if (!empty($build['display'])) {
           foreach ($build['display'] as $display_id => $value) {
             if (!empty($value['display_options']['style']['options']['layoutgenentitystyles_view'])) {
@@ -367,7 +365,7 @@ class LayoutgenentitystylesServices extends ControllerBase {
   }
   
   /**
-   * Ajout le style apres l'enregistrement d'une view style d'affichage
+   * Ajout le style apres l'enregistrement d'une entité (type d'affichage)
    * disposant d'une library, ou tout autre module.
    * SI on regenere les styles on a perd ces styles. ( correction baique: On va
    * les ajoutés dans une variable de configuration pour le momment, apres on
@@ -389,6 +387,25 @@ class LayoutgenentitystylesServices extends ControllerBase {
       $this->LoadStyleFromMod->getStyleDefault($module, $filename, $this->libraries[$module . '.' . $id . '.' . $display_id], $subdir);
       $this->addStylesToConfigTheme();
       $this->saveCustomLibrary($library, $id, $display_id, $module, $filename, $subdir);
+    }
+  }
+  
+  /**
+   * Permet d'ajouter les styles provenant d'un plugin block.
+   *
+   * @param string $library
+   * @param \Drupal\Core\Block\BlockPluginInterface $block
+   * @param string $display_id
+   */
+  function addStyleFromPluginBlock(\Drupal\Core\Block\BlockPluginInterface $block, $display_id = null) {
+    if (!$display_id)
+      $display_id = 'default';
+    $confs = $block->getConfiguration();
+    if (!empty($confs['layoutgenentitystyles_view'])) {
+      $this->addStyleFromModule($confs['layoutgenentitystyles_view'], $block->getPluginId(), $display_id, 'block');
+    }
+    else {
+      $this->messenger()->addWarning("Le champs layoutgenentitystyles_view est vide ou n'existe pas");
     }
   }
   
