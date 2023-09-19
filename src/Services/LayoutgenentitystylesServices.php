@@ -278,17 +278,24 @@ class LayoutgenentitystylesServices extends ControllerBase {
    */
   protected function getComponentsOverrides() {
     if (\Drupal::moduleHandler()->moduleExists('lesroidelareno')) {
-      $domain_id = \Drupal\lesroidelareno\lesroidelareno::getCurrentDomainId();
       $fied_access = \Drupal\domain_access\DomainAccessManagerInterface::DOMAIN_ACCESS_FIELD;
       $query = $this->entityTypeManager->getStorage('paragraph')->getQuery();
-      $query->condition($fied_access, $domain_id);
+      $query->condition($fied_access, $this->domaine_id);
       $ids = $query->execute();
       // dump($ids);
       if ($ids) {
         $entities = $this->entityTypeManager->getStorage('paragraph')->loadMultiple($ids);
         foreach ($entities as $entity) {
-          if (method_exists($entity, 'getSections')) {
-            $this->generateSTyleFromEntity($entity);
+          if (method_exists($entity, 'hasField')) {
+            if ($entity->hasField('layout_builder__layout')) {
+              $sections = [];
+              $listSetions = $entity->get('layout_builder__layout')->getValue();
+              $section_storage = $entity->getEntityTypeId() . '.' . $entity->bundle() . '.' . $entity->id();
+              foreach ($listSetions as $value) {
+                $sections[] = reset($value);
+              }
+              $this->generateStyleFromSection($sections, $section_storage);
+            }
           }
         }
       }
