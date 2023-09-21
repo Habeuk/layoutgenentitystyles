@@ -309,7 +309,7 @@ class LayoutgenentitystylesServices extends ControllerBase {
   function generateAllFilesStyles() {
     $this->loadAllViews();
     $sectionStorages = $this->getListSectionStorages();
-    $this->getComponentsOverrides();
+    
     foreach ($sectionStorages as $section_storage => $entityView) {
       $sections = $this->getSectionsForEntityView($section_storage, $entityView);
       $this->libraries[$section_storage] = $this->getLibraryForEachSections($sections);
@@ -329,6 +329,8 @@ class LayoutgenentitystylesServices extends ControllerBase {
     // il faudra soit separer les sauvegarde au niveau du theme, et ajouté un
     // moyen qui permet de mettre à jours les configirations surcharger.
     $this->addStylesToConfigTheme();
+    // force.
+    $this->getComponentsOverrides();
   }
   
   /**
@@ -523,16 +525,20 @@ class LayoutgenentitystylesServices extends ControllerBase {
   }
   
   /**
+   * Recuperer les librairies definies dans les sections.
+   * Cela fonctionne dans la mesure ou une section contient un layout, et au
+   * niveau de ce layout on a definit une library.
    *
    * @param array $sections
-   * @param string $section_storage
+   * @param string $section_storage_id
    *        key of entity (doit contenir deux point par example
-   *        cv_entity.cv_entity.150
+   *        cv_entity.cv_entity.150( cette nomenclature vise à eviter les
+   *        doublons).
    */
-  function generateStyleFromSection(array $sections, $section_storage) {
+  function generateStyleFromSection(array $sections, $section_storage_id) {
     if ($this->isAdmin)
       \Drupal::messenger()->addStatus(" Les styles (scss/js) maj via une entité surchargée ", true);
-    $this->libraries[$section_storage] = $this->getLibraryForEachSections($sections);
+    $this->libraries[$section_storage_id] = $this->getLibraryForEachSections($sections);
     $this->addStylesToConfigTheme();
   }
   
@@ -598,6 +604,7 @@ class LayoutgenentitystylesServices extends ControllerBase {
   
   /**
    * Retourne les libraries contenuu dans les sections.
+   * ( i.e, retourner les les chemins vers les fichiers js ou scss ).
    *
    * @param array $sections
    */
