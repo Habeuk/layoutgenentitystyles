@@ -14,6 +14,8 @@ use Drupal\Core\Entity\EntityTypeInterface;
 use Drupal\Core\Config\ConfigFactory;
 use Drupal\generate_style_theme\Entity\ConfigThemeEntity;
 use Drupal\generate_style_theme\Services\GenerateStyleTheme;
+use Drupal\generate_style_theme\Services\ManageFileCustomStyle;
+use Drupal\Component\Utility\Timer;
 
 class LayoutgenentitystylesServices extends ControllerBase {
   /**
@@ -77,16 +79,28 @@ class LayoutgenentitystylesServices extends ControllerBase {
   protected $conf = null;
   /**
    *
+   * @var \Drupal\layout_custom_style\StyleScssPluginManager
+   */
+  protected $StyleScssPlugin;
+  
+  /**
+   *
+   * @var ManageFileCustomStyle
+   */
+  protected $ManageFileCustomStyle;
+  /**
+   *
    * @var string
    */
   public $domaine_id = null;
   //
   private $container;
   
-  function __construct(SectionStorageManager $SectionStorageManager, LoadStyleFromMod $LoadStyleFromMod, ConfigFactory $ConfigFactory) {
+  function __construct(SectionStorageManager $SectionStorageManager, LoadStyleFromMod $LoadStyleFromMod, ConfigFactory $ConfigFactory, ManageFileCustomStyle $ManageFileCustomStyle) {
     $this->sectionStorageManager = $SectionStorageManager;
     $this->LoadStyleFromMod = $LoadStyleFromMod;
     $this->ConfigFactory = $ConfigFactory;
+    $this->ManageFileCustomStyle = $ManageFileCustomStyle;
     $this->container = \Drupal::getContainer();
     $this->checkIfUserIsAdministrator();
   }
@@ -288,12 +302,14 @@ class LayoutgenentitystylesServices extends ControllerBase {
         foreach ($entities as $entity) {
           if (method_exists($entity, 'hasField')) {
             if ($entity->hasField('layout_builder__layout')) {
+              
               $sections = [];
               $listSetions = $entity->get('layout_builder__layout')->getValue();
               $section_storage = $entity->getEntityTypeId() . '.' . $entity->bundle() . '.' . $entity->id();
               foreach ($listSetions as $value) {
                 $sections[] = reset($value);
               }
+              $this->getOverrideScss($sections);
               $this->generateStyleFromSection($sections, $section_storage);
             }
           }
@@ -303,17 +319,51 @@ class LayoutgenentitystylesServices extends ControllerBase {
   }
   
   /**
+   * Specifique à wb-horizon.
+   * Permet de recuperer les styles surcharger et de les ajouter en BD afin que
+   * le fichier custom.scss puisse etre generer avec du bon contenu.
+   */
+  protected function getOverrideScss($sections) {
+    if (\Drupal::moduleHandler()->moduleExists('lesroidelareno')) {
+      // On charge
+      foreach ($sections as $section) {
+        /**
+         *
+         * @var \Drupal\layout_builder\Section $section
+         */
+        $storage = $section->getLayoutSettings();
+        $this->loadPluginScss()->addConfigs($storage);
+      }
+    }
+  }
+  
+  /**
+   * Specifique à wb-horizon.
+   *
+   * @return \Drupal\layout_custom_style\StyleScssPluginManager
+   */
+  protected function loadPluginScss() {
+    if (!$this->StyleScssPlugin) {
+      $this->StyleScssPlugin = \Drupal::service('plugin.manager.style_scss');
+    }
+    return $this->StyleScssPlugin;
+  }
+  
+  /**
    * Permet de generer tous les styles et de les ajouter dans la configuration
    * du theme actif.
    */
   function generateAllFilesStyles() {
+    // Timer::start('generateAllFilesStyles');
     $this->loadAllViews();
     $sectionStorages = $this->getListSectionStorages();
     
     foreach ($sectionStorages as $section_storage => $entityView) {
       $sections = $this->getSectionsForEntityView($section_storage, $entityView);
       $this->libraries[$section_storage] = $this->getLibraryForEachSections($sections);
+      $this->getOverrideScss($sections);
     }
+    // Timer::stop('generateAllFilesStyles');
     // On ajoute
     $this->addStyleFromEntitiesOverride();
     //
@@ -331,6 +381,8 @@ class LayoutgenentitystylesServices extends ControllerBase {
     $this->addStylesToConfigTheme();
     // force.
     $this->getComponentsOverrides();
+    // On regenere le fichier custom.
+    $this->ManageFileCustomStyle->generateCustomFile();
   }
   
   /**

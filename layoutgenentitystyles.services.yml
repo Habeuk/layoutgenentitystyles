@@ -4,4 +4,4 @@ services:
     arguments: ['@extension.path.resolver','@messenger']
   layoutgenentitystyles.add.style.theme:
     class: Drupal\layoutgenentitystyles\Services\LayoutgenentitystylesServices
-    arguments: ['@plugin.manager.layout_builder.section_storage','@layoutgenentitystyles.loadstyle','@config.factory']
+    arguments: ['@plugin.manager.layout_builder.section_storage','@layoutgenentitystyles.loadstyle','@config.factory','@generate_style_theme.manage_file_custom_style']
