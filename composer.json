@@ -11,7 +11,6 @@
   ],
   "minimum-stability": "dev",
   "require": {
-    "habeuk/formatage_models": "^3.0| dev-3x",
     "habeuk/generate_style_theme": "dev-2x | ^2.0 | dev-3x | ^3.0"
   }
 }
