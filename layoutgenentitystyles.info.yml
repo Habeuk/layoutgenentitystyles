@@ -4,4 +4,4 @@ description: permet de generer un fichier css/js pour chaque entity ou id d&#039
 package: Custom
 core_version_requirement: ^9 || ^10
 dependencies:
-  - generate_style_theme
+  - generate_style_theme:generate_style_theme
