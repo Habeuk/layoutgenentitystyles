@@ -568,20 +568,33 @@ class LayoutgenentitystylesServices extends ControllerBase {
    * automatiquement importer.
    *
    * @param LayoutBuilderEntityViewDisplay $entity
-   * @ALERT Cette fonction ne cessite une MAJ, ( elle fonctionne pour l'instant uniquement dans un env avec les layouts. )
    */
   function generateStyleFromFieldConfigDisplay(LayoutBuilderEntityViewDisplay $entity) {
     if ($this->isAdmin)
       \Drupal::messenger()->addStatus(" Les styles (scss/js) maj via la configuration d'affichage du champs ", true);
+    $display_id = 'default';
+    // Si l'utilisateur a activé les layouts.
     $sections = $entity->getSections();
-    foreach ($sections as $section) {
-      $components = $section->getComponents();
-      foreach ($components as $component) {
-        $ar = $component->toArray();
-        if (!empty($ar['configuration']['formatter']['settings']['layoutgenentitystyles_view'])) {
-          $id = \str_replace(".", "__", $ar['configuration']['id']);
-          $display_id = 'default';
-          $this->addStyleFromModule($ar['configuration']['formatter']['settings']['layoutgenentitystyles_view'], $id, $display_id, 'fields');
+    if ($sections)
+      foreach ($sections as $section) {
+        $components = $section->getComponents();
+        foreach ($components as $component) {
+          $ar = $component->toArray();
+          if (!empty($ar['configuration']['formatter']['settings']['layoutgenentitystyles_view'])) {
+            $id = \str_replace(".", "__", $ar['configuration']['id']);
+            $this->addStyleFromModule($ar['configuration']['formatter']['settings']['layoutgenentitystyles_view'], $id, $display_id, 'fields');
+          }
+        }
+      }
+    else {
+      /**
+       * On recupere les champs et on regarde s'il ya des styles à importer.
+       */
+      $fields = $entity->get('content');
+      foreach ($fields as $field_name => $field) {
+        if (!empty($field['settings']['layoutgenentitystyles_view'])) {
+          $id = \str_replace(".", "__", $entity->id() . '-' . $field_name);
+          $this->addStyleFromModule($field['settings']['layoutgenentitystyles_view'], $id, $display_id, 'fields');
         }
       }
     }
