@@ -547,7 +547,7 @@ class LayoutgenentitystylesServices extends ControllerBase {
    */
   function generateSTyleFromEntity(LayoutBuilderEntityViewDisplay $entity) {
     if ($this->isAdmin)
-      \Drupal::messenger()->addStatus(" Les styles (scss/js) maj via l'entité de configuration ", true);
+      \Drupal::messenger()->addStatus(" Les styles (scss/js) maj via l'entité de configuration ");
     $sections = $entity->getSections();
     $section_storage = $entity->id();
     $this->libraries[$section_storage] = $this->getLibraryForEachSections($sections);
@@ -571,7 +571,7 @@ class LayoutgenentitystylesServices extends ControllerBase {
    */
   function generateStyleFromFieldConfigDisplay(LayoutBuilderEntityViewDisplay $entity) {
     if ($this->isAdmin)
-      \Drupal::messenger()->addStatus(" Les styles (scss/js) maj via la configuration d'affichage du champs ", true);
+      \Drupal::messenger()->addStatus(" Les styles (scss/js) maj via la configuration d'affichage du champs ");
     $display_id = 'default';
     // Si l'utilisateur a activé les layouts.
     $sections = $entity->getSections();
@@ -613,7 +613,7 @@ class LayoutgenentitystylesServices extends ControllerBase {
    */
   function generateStyleFromSection(array $sections, $section_storage_id) {
     if ($this->isAdmin)
-      \Drupal::messenger()->addStatus(" Les styles (scss/js) maj via une entité surchargée ", true);
+      \Drupal::messenger()->addStatus(" Les styles (scss/js) maj via une entité surchargée ");
     $this->libraries[$section_storage_id] = $this->getLibraryForEachSections($sections);
     $this->addStylesToConfigTheme();
   }
