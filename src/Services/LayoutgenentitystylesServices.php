@@ -305,7 +305,7 @@ class LayoutgenentitystylesServices extends ControllerBase {
       $fied_access = \Drupal\domain_access\DomainAccessManagerInterface::DOMAIN_ACCESS_FIELD;
       $query = $this->entityTypeManager->getStorage('paragraph')->getQuery();
       $query->condition($fied_access, $this->domaine_id);
-      $ids = $query->execute();
+      $ids = $query->accessCheck(TRUE)->execute();
       // dump($ids);
       if ($ids) {
         $entities = $this->entityTypeManager->getStorage('paragraph')->loadMultiple($ids);
