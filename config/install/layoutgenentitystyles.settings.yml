@@ -1,4 +1,14 @@
 langcode: 'en'
+enabled_auto_generate: 1
 enabled_auto_generate_config: 1
 enabled_auto_generate_fieldconfig: 1
 enabled_auto_generate_entity: 1
+entity_auto_generate:
+  block_content: 1
+  blocks_contents: 1
+  commerce_product: 1
+  node: 1
+  paragraph: 1
+
+
+

@@ -65,8 +65,8 @@ class SettingsForm extends ConfigFormBase {
     foreach ($entities as $entity) {
       $form['entity_auto_generate'][$entity->id()] = [
         '#type' => 'checkbox',
-        '#title' => $entity->getLabel(),
-        '#default_value' => isset($config['list_entities.' . $entity->id()]) ? $config['list_entities.' . $entity->id()] : 0
+        '#title' => $entity->getLabel() . " [" . $entity->id() . "]",
+        '#default_value' => $config['entity_auto_generate'][$entity->id()] ?? 0
       ];
     }
     //
