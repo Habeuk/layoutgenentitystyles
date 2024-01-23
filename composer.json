@@ -1,16 +1,15 @@
 {
-  "name": "habeuk/layoutgenentitystyles",
-  "description": "permet de generer les styles pour les layouts",
-  "type": "drupal-custom-module",
-  "license": "MIT",
-  "authors": [
-    {
-      "name": "stephane888",
-      "email": "kksasteph888@gmail.com"
-    }
-  ],
-  "minimum-stability": "dev",
-  "require": {
-    "habeuk/generate_style_theme": "^3.4.1|dev-3x|^4.0|dev-4x"
-  }
+	"name" : "habeuk/layoutgenentitystyles",
+	"description" : "permet de generer les styles pour les layouts",
+	"type" : "drupal-custom-module",
+	"license" : "MIT",
+	"authors" : [{
+			"name" : "stephane888",
+			"email" : "kksasteph888@gmail.com"
+		}
+	],
+	"minimum-stability" : "dev",
+	"require" : {
+		"habeuk/generate_style_theme" : "^3.4.3|dev-3x|^4.0|dev-4x"
+	}
 }
