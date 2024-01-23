@@ -50,7 +50,8 @@ class SettingsForm extends ConfigFormBase {
     $form['enabled_auto_generate_entity'] = [
       '#type' => 'checkbox',
       '#title' => "activé l'autoregenration des fichiers scss & js pour les entites surcharger",
-      '#default_value' => isset($config['enabled_auto_generate_entity']) ? $config['enabled_auto_generate_entity'] : 1
+      '#default_value' => isset($config['enabled_auto_generate_entity']) ? $config['enabled_auto_generate_entity'] : 0,
+      "#description" => "Desactivé par defaut car a un impact important sur les ressources"
     ];
     //
     $form['entity_auto_generate'] = [

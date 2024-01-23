@@ -14,43 +14,41 @@ use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Entity\Display\EntityViewDisplayInterface;
 
 /**
- * Permet d'ajouter les styles à partir des champs.s
- *
- * @param EntityInterface $entity
- */
-function _layoutgenentitystyles_add_style_from_fields(EntityViewDisplayInterface $entity) {
-  dump($entity->toArray());
-  $fields = $entity->getComponents();
-  dump($fields);
-  foreach ($fields as $feld_name => $field) {
-    ;
-  }
-}
-
-/**
- * *
+ * Ce hook s'execute uniquement à la sauvegarde d'une entité de configuration.
+ * a un impact moins important sur le fonctionnement.
  * hook_ENTITY_TYPE_presave
  */
 function layoutgenentitystyles_entity_view_display_presave(EntityInterface $entity) {
   $configs = ConfigDrupal::config('layoutgenentitystyles.settings');
-  if (!empty($configs['enabled_auto_generate_config'])) {
+  if (($configs['enabled_auto_generate_config'] || $configs['enabled_auto_generate_fieldconfig']) && !empty($configs['entity_auto_generate'][$entity->getEntityTypeId()])) {
     if (method_exists($entity, 'getSections')) {
+      $status = true;
       /**
-       *
-       * @var \Drupal\layoutgenentitystyles\Services\LayoutgenentitystylesServices $style
+       * On va permettre à d'autre module de pouvoir ajouter des conditions de
+       * validations surpplementaires.
        */
-      $style = \Drupal::getContainer()->get('layoutgenentitystyles.add.style.theme');
-      $style->generateSTyleFromEntity($entity);
-    }
-  }
-  if (!empty($configs['enabled_auto_generate_fieldconfig'])) {
-    if (method_exists($entity, 'getSections')) {
-      /**
-       *
-       * @var \Drupal\layoutgenentitystyles\Services\LayoutgenentitystylesServices $style
-       */
-      $style = \Drupal::getContainer()->get('layoutgenentitystyles.add.style.theme');
-      $style->generateStyleFromFieldConfigDisplay($entity);
+      \Drupal::moduleHandler()->invokeAll('layoutgenentitystyles_presave_alter_status', [
+        &$status,
+        $entity
+      ]);
+      if ($status) {
+        if ($configs['enabled_auto_generate_config']) {
+          /**
+           *
+           * @var \Drupal\layoutgenentitystyles\Services\LayoutgenentitystylesServices $style
+           */
+          $style = \Drupal::getContainer()->get('layoutgenentitystyles.add.style.theme');
+          $style->generateSTyleFromEntity($entity);
+        }
+        if ($configs['enabled_auto_generate_fieldconfig']) {
+          /**
+           *
+           * @var \Drupal\layoutgenentitystyles\Services\LayoutgenentitystylesServices $style
+           */
+          $style = \Drupal::getContainer()->get('layoutgenentitystyles.add.style.theme');
+          $style->generateStyleFromFieldConfigDisplay($entity);
+        }
+      }
     }
   }
 }
@@ -63,8 +61,17 @@ function layoutgenentitystyles_entity_view_display_presave(EntityInterface $enti
  */
 function layoutgenentitystyles_entity_presave(EntityInterface $entity) {
   $configs = ConfigDrupal::config('layoutgenentitystyles.settings');
-  if (!empty($configs['enabled_auto_generate_entity'])) {
-    if (method_exists($entity, 'hasField'))
+  if (!empty($configs['enabled_auto_generate_entity']) && !empty($configs['entity_auto_generate'][$entity->getEntityTypeId()]) && !$entity->isNew()) {
+    $status = true;
+    /**
+     * On va permettre à d'autre module de pouvoir ajouter des conditions de
+     * validations surpplementaires.
+     */
+    \Drupal::moduleHandler()->invokeAll('layoutgenentitystyles_presave_alter_status', [
+      &$status,
+      $entity
+    ]);
+    if ($status && method_exists($entity, 'hasField'))
       if ($entity->hasField('layout_builder__layout')) {
         $sections = [];
         $listSetions = $entity->get('layout_builder__layout')->getValue();
@@ -82,4 +89,6 @@ function layoutgenentitystyles_entity_presave(EntityInterface $entity) {
       }
   }
 }
+
+
 
