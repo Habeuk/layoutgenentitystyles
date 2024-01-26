@@ -11,16 +11,16 @@
  */
 use Stephane888\Debug\Repositories\ConfigDrupal;
 use Drupal\Core\Entity\EntityInterface;
-use Drupal\Core\Entity\Display\EntityViewDisplayInterface;
 
 /**
  * Ce hook s'execute uniquement à la sauvegarde d'une entité de configuration.
  * a un impact moins important sur le fonctionnement.
  * hook_ENTITY_TYPE_presave
+ * Entity id : entity_view_display
  */
 function layoutgenentitystyles_entity_view_display_presave(EntityInterface $entity) {
   $configs = ConfigDrupal::config('layoutgenentitystyles.settings');
-  if (($configs['enabled_auto_generate_config'] || $configs['enabled_auto_generate_fieldconfig']) && !empty($configs['entity_auto_generate'][$entity->getEntityTypeId()])) {
+  if (($configs['enabled_auto_generate_config'] || $configs['enabled_auto_generate_fieldconfig']) && !$entity->isNew()) {
     if (method_exists($entity, 'getSections')) {
       $status = true;
       /**
@@ -76,7 +76,7 @@ function layoutgenentitystyles_entity_presave(EntityInterface $entity) {
         $sections = [];
         $listSetions = $entity->get('layout_builder__layout')->getValue();
         $section_storage = $entity->getEntityTypeId() . '.' . $entity->bundle() . '.' . $entity->id();
-        
+
         foreach ($listSetions as $value) {
           $sections[] = reset($value);
         }
