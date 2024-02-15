@@ -10,6 +10,6 @@
 	],
 	"minimum-stability" : "dev",
 	"require" : {
-		"habeuk/generate_style_theme" : "^3.4.3|dev-3x|^4.0|dev-4x"
+		"habeuk/generate_style_theme" : "^3.4.4|dev-3x|^4.0|dev-4x"
 	}
 }
