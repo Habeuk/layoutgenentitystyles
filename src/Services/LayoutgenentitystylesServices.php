@@ -404,10 +404,6 @@ class LayoutgenentitystylesServices extends ControllerBase {
       if (\Drupal::moduleHandler()->moduleExists('domain') && \Drupal::moduleHandler()->moduleExists('buildercv')) {
         $field_access = \Drupal\domain_access\DomainAccessManagerInterface::DOMAIN_ACCESS_FIELD;
         foreach ($this->entitiesListLayoutBuilderLayout as $entity_type_id) {
-          /**
-           *
-           * @var \Drupal\buildercv\Entity\CvEntity $entity
-           */
           $query = $this->entityTypeManager()->getStorage($entity_type_id)->getQuery();
           $query->condition('layout_builder__layout', '', '<>');
           $query->condition($field_access, $this->domaine_id);
@@ -415,10 +411,6 @@ class LayoutgenentitystylesServices extends ControllerBase {
           if (!empty($results)) {
             $entities = $this->entityTypeManager()->getStorage($entity_type_id)->loadMultiple($results);
             foreach ($entities as $content) {
-              /**
-               *
-               * @var \Drupal\buildercv\Entity\CvEntity $content
-               */
               /**
                * *
                *
@@ -692,12 +684,6 @@ class LayoutgenentitystylesServices extends ControllerBase {
     ];
     
     foreach ($sections as $section) {
-      // dump($section);
-      /**
-       *
-       * @var \Drupal\layout_builder\Section $section
-       */
-      
       /**
        *
        * @var \Drupal\formatage_models\Plugin\Layout\FormatageModels $plugin
