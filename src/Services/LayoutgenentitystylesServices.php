@@ -15,6 +15,7 @@ use Drupal\Core\Config\ConfigFactory;
 use Drupal\generate_style_theme\Entity\ConfigThemeEntity;
 use Drupal\generate_style_theme\Services\GenerateStyleTheme;
 use Drupal\generate_style_theme\Services\ManageFileCustomStyle;
+use Drupal\generate_style_theme\Services\ManageFileMailStyle;
 use Drupal\Component\Utility\Timer;
 
 class LayoutgenentitystylesServices extends ControllerBase {
@@ -88,6 +89,12 @@ class LayoutgenentitystylesServices extends ControllerBase {
    * @var ManageFileCustomStyle
    */
   protected $ManageFileCustomStyle;
+  
+  /**
+   *
+   * @var ManageFileMailStyle
+   */
+  protected $ManageFileMailStyle;
   /**
    *
    * @var string
@@ -96,11 +103,12 @@ class LayoutgenentitystylesServices extends ControllerBase {
   //
   private $container;
   
-  function __construct(SectionStorageManager $SectionStorageManager, LoadStyleFromMod $LoadStyleFromMod, ConfigFactory $ConfigFactory, ManageFileCustomStyle $ManageFileCustomStyle) {
+  function __construct(SectionStorageManager $SectionStorageManager, LoadStyleFromMod $LoadStyleFromMod, ConfigFactory $ConfigFactory, ManageFileCustomStyle $ManageFileCustomStyle, ManageFileMailStyle $ManageFileMailStyle) {
     $this->sectionStorageManager = $SectionStorageManager;
     $this->LoadStyleFromMod = $LoadStyleFromMod;
     $this->ConfigFactory = $ConfigFactory;
     $this->ManageFileCustomStyle = $ManageFileCustomStyle;
+    $this->ManageFileMailStyle = $ManageFileMailStyle;
     $this->container = \Drupal::getContainer();
     $this->checkIfUserIsAdministrator();
   }
@@ -393,6 +401,8 @@ class LayoutgenentitystylesServices extends ControllerBase {
     $this->getComponentsOverrides();
     // On regenere le fichier custom.
     $this->ManageFileCustomStyle->generateCustomFile();
+    // On regenere le fichier custom d'email.
+    $this->ManageFileMailStyle->generateCustomFile();
   }
   
   /**
