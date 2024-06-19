@@ -459,6 +459,28 @@ class LayoutgenentitystylesServices extends ControllerBase {
   }
   
   /**
+   *
+   * @param string $library
+   * @param string $id
+   * @param string $display_id
+   * @param string $subdir
+   */
+  function addStyleFromModule(string $library, $id, $display_id, $subdir = '') {
+    $this->addStyleFromExtention($library, $id, $display_id, $subdir, 'module');
+  }
+  
+  /**
+   *
+   * @param string $library
+   * @param string $id
+   * @param string $display_id
+   * @param string $subdir
+   */
+  function addStyleFromTheme(string $library, $id, $display_id, $subdir = 'dynamic_styles') {
+    $this->addStyleFromExtention($library, $id, $display_id, $subdir, 'theme');
+  }
+  
+  /**
    * Ajout le style apres l'enregistrement d'une entité (type d'affichage)
    * disposant d'une library, ou tout autre module.
    * SI on regenere les styles on a perd ces styles. ( correction baique: On va
@@ -468,7 +490,7 @@ class LayoutgenentitystylesServices extends ControllerBase {
    *
    * @param string $library
    */
-  function addStyleFromModule(string $library, $id, $display_id, $subdir = '') {
+  protected function addStyleFromExtention(string $library, $id, $display_id, $subdir = '', $type = 'module') {
     [
       $module,
       $filename
@@ -478,7 +500,7 @@ class LayoutgenentitystylesServices extends ControllerBase {
         'scss' => [],
         'js' => []
       ];
-      $this->LoadStyleFromMod->getStyleDefault($module, $filename, $this->libraries[$module . '.' . $id . '.' . $display_id], $subdir);
+      $this->LoadStyleFromMod->getStyleDefault($module, $filename, $this->libraries[$module . '.' . $id . '.' . $display_id], $subdir, $type);
       $this->addStylesToConfigTheme();
       $this->saveCustomLibrary($library, $id, $display_id, $module, $filename, $subdir);
     }
@@ -508,6 +530,9 @@ class LayoutgenentitystylesServices extends ControllerBase {
    * Le but de cette fonction est d'eviter de perdre les librairies lors de la
    * regeneration des styles.
    * Mais cette approche devrai etre ameliorer ou trouver une autre logique.
+   * // Essaie
+   * 1- On pourrais sauvegarder cela dans un fichier de configuration
+   * specifique.
    *
    * @deprecated 2x
    */
@@ -760,6 +785,5 @@ class LayoutgenentitystylesServices extends ControllerBase {
     
     throw new \InvalidArgumentException(sprintf('The "%s" layout does not provide a configuration form', $layout->getPluginId()));
   }
-  
 }
 

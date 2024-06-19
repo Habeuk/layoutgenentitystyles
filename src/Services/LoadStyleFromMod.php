@@ -61,17 +61,17 @@ class LoadStyleFromMod {
    *        s'il faut acceder à un sous-repertoire, le presisé.
    *        example : sections/headers
    */
-  function getStyleDefault(string $module, string $filename, array &$libraries = [], string $subdir = '') {
+  function getStyleDefault(string $type_name, string $filename, array &$libraries = [], string $subdir = '', $type = 'module') {
     if (!empty($subdir)) {
       $subdir = trim($subdir, "/");
       $subdir .= "/";
     }
-    $file = DRUPAL_ROOT . '/' . $this->ExtensionPathResolver->getPath('module', $module) . '/wbu-atomique-theme/src/js/' . $subdir . $filename . '.js';
+    $file = DRUPAL_ROOT . '/' . $this->ExtensionPathResolver->getPath($type, $type_name) . '/wbu-atomique-theme/src/js/' . $subdir . $filename . '.js';
     if (file_exists($file)) {
       $this->readFile($filename, $file, $libraries);
     }
     else {
-      $this->messenger->addWarning($module . ', File not exit : ' . $file);
+      $this->messenger->addWarning($type_name . ', File not exit : ' . $file);
     }
   }
   
@@ -102,5 +102,4 @@ class LoadStyleFromMod {
       $libraries['js'][$filename] = $js;
     }
   }
-  
 }
