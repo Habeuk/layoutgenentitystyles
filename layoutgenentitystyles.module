@@ -56,7 +56,7 @@ function layoutgenentitystyles_entity_view_display_presave(EntityInterface $enti
 /**
  * hook_ENTITY_TYPE_presave
  * il faut accorder l'execution de cette function et des function similaire à
- * des utilisateurs ayent des droits suffisant.
+ * des utilisateurs ayant des droits suffisant.
  * Cela s'execute lors de la creation de chaque entité.
  */
 function layoutgenentitystyles_entity_presave(EntityInterface $entity) {
@@ -76,7 +76,7 @@ function layoutgenentitystyles_entity_presave(EntityInterface $entity) {
         $sections = [];
         $listSetions = $entity->get('layout_builder__layout')->getValue();
         $section_storage = $entity->getEntityTypeId() . '.' . $entity->bundle() . '.' . $entity->id();
-
+        
         foreach ($listSetions as $value) {
           $sections[] = reset($value);
         }
