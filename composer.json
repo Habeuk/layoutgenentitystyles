@@ -1,7 +1,7 @@
 {
 	"name" : "habeuk/layoutgenentitystyles",
 	"description" : "permet de generer les styles pour les layouts",
-	"type" : "drupal-custom-module",
+	"type" : "drupal-module",
 	"license" : "MIT",
 	"authors" : [{
 			"name" : "stephane888",
