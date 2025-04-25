@@ -75,7 +75,8 @@ class SettingsForm extends ConfigFormBase {
       '#type' => 'details',
       '#title' => 'Contient les styles ajouter par des modules',
       '#open' => false,
-      '#tree' => true
+      '#tree' => true,
+      '#description' => 'Videz le champs library pour retirer la library'
     ];
     if (!empty($config['list_style'])) {
       foreach ($config['list_style'] as $module_name => $style) {
@@ -104,6 +105,11 @@ class SettingsForm extends ConfigFormBase {
           '#title' => 'subdir',
           '#default_value' => isset($style['subdir']) ? $style['subdir'] : ''
         ];
+        $form['list_style'][$module_name]['type'] = [
+          '#type' => 'textfield',
+          '#title' => 'type',
+          '#default_value' => isset($style['type']) ? $style['type'] : ''
+        ];
       }
     }
     //
@@ -116,7 +122,13 @@ class SettingsForm extends ConfigFormBase {
    */
   public function submitForm(array &$form, FormStateInterface $form_state) {
     $config = $this->config('layoutgenentitystyles.settings');
-    $config->set('list_style', $form_state->getValue('list_style'));
+    // parcourt et supprimer les libriaries vide.
+    $list_style = [];
+    foreach ($form_state->getValue('list_style') as $key => $value) {
+      if (!empty($value['library']) && !empty($value['id']))
+        $list_style[$key] = $value;
+    }
+    $config->set('list_style', $list_style);
     $config->set('entity_auto_generate', $form_state->getValue('entity_auto_generate'));
     $config->set('enabled_auto_generate_config', $form_state->getValue('enabled_auto_generate_config'));
     $config->set('enabled_auto_generate_entity', $form_state->getValue('enabled_auto_generate_entity'));
@@ -124,5 +136,4 @@ class SettingsForm extends ConfigFormBase {
     $config->save();
     parent::submitForm($form, $form_state);
   }
-  
 }
