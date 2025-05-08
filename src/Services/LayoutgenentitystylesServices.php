@@ -51,6 +51,13 @@ class LayoutgenentitystylesServices extends ControllerBase {
   protected $ConfigFactory;
   
   /**
+   * Contient les definitions d'entites qui permettront de generer les styles.
+   *
+   * @var array
+   */
+  protected $sectionStoragesByLayout = [];
+  
+  /**
    * Contient la liste des entites donc on va rechercher s'il possede les
    * données pour le champs "layout_builder__layout"
    * Pour le moment on fait uniquement pour l'ent
@@ -179,11 +186,6 @@ class LayoutgenentitystylesServices extends ControllerBase {
              * @var \Drupal\Core\Entity\Sql\SqlContentEntityStorage $entity_type
              */
             $entity_type = $this->entityTypeManager()->getStorage($entity_type_id);
-            
-            if (str_contains($key, 'content_generate_entity')) {
-              
-              // dump($table);
-            }
             
             if ($entity_type->hasData()) {
               
@@ -374,9 +376,9 @@ class LayoutgenentitystylesServices extends ControllerBase {
   function generateAllFilesStyles() {
     // Timer::start('generateAllFilesStyles');
     $this->loadAllViews();
-    $sectionStorages = $this->getListSectionStorages();
+    $this->sectionStoragesByLayout = $this->getListSectionStorages();
     
-    foreach ($sectionStorages as $section_storage => $entityView) {
+    foreach ($this->sectionStoragesByLayout as $section_storage => $entityView) {
       $sections = $this->getSectionsForEntityView($section_storage, $entityView);
       $this->libraries[$section_storage] = $this->getLibraryForEachSections($sections);
       $this->getOverrideScss($sections);
@@ -560,7 +562,31 @@ class LayoutgenentitystylesServices extends ControllerBase {
     $config = $this->ConfigFactory->getEditable('layoutgenentitystyles.settings');
     $list = $config->get('list_style');
     if ($list) {
+      $sectionStoragesByLayoutKeys = array_keys($this->sectionStoragesByLayout);
       foreach ($list as $value) {
+        /**
+         * Tous les styles ne doivent pas etre generer.
+         * Cas 1: pour les styles en relations avec une entite( generalement
+         * formatage de champs), il faut verifier si l'entite parente (par
+         * example : verifier si le paragraphe est present). est presente.
+         */
+        if (str_contains($value['id'], 'field_block:')) {
+          [
+            $base_key,
+            $entity_id,
+            $entity_type
+          ] = explode(":", $value['id']);
+          $search_key = "$entity_id.$entity_type";
+          $has_key = false;
+          foreach ($sectionStoragesByLayoutKeys as $key) {
+            if (str_contains($key, $search_key)) {
+              $has_key = true;
+              break;
+            }
+          }
+          if (!$has_key)
+            continue;
+        }
         $subdir = isset($value['subdir']) ? $value['subdir'] : '';
         $type = !empty($value['type']) ? $value['type'] : 'module';
         $this->addStyleFromView($value['library'], $value['id'], $value['display_id'], $subdir, $type);
