@@ -76,7 +76,6 @@ function layoutgenentitystyles_entity_presave(EntityInterface $entity) {
         $sections = [];
         $listSetions = $entity->get('layout_builder__layout')->getValue();
         $section_storage = $entity->getEntityTypeId() . '.' . $entity->bundle() . '.' . $entity->id();
-        
         foreach ($listSetions as $value) {
           $sections[] = reset($value);
         }
@@ -86,6 +85,7 @@ function layoutgenentitystyles_entity_presave(EntityInterface $entity) {
          */
         $style = \Drupal::getContainer()->get('layoutgenentitystyles.add.style.theme');
         $style->generateStyleFromSection($sections, $section_storage);
+        $style->generateStyleForFieldsFromEntity($sections, $section_storage, $entity);
       }
   }
 }
