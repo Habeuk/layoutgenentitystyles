@@ -140,14 +140,38 @@ class LayoutgenentitystylesServices extends ControllerBase {
    */
   protected function getListSectionStorages() {
     if (!$this->sectionStorages) {
-      
+      $this->sectionStorages = [];
       /**
        * L'entite qui gere les affichages.
        *
        * @var string $entity_type_id
        */
       $entity_type_id = 'entity_view_display';
-      $this->sectionStorages = $this->entityTypeManager()->getStorage($entity_type_id)->loadByProperties();
+      $sectionStorages = $this->entityTypeManager()->getStorage($entity_type_id)->loadByProperties();
+      // On filtre les affichages par ceux donc l'utilisateur à valider.
+      $config = $this->ConfigFactory->getEditable('layoutgenentitystyles.settings');
+      $entity_auto_generate = array_filter($config->get('entity_auto_generate'), function ($value) {
+        return $value ?? false;
+      });
+      if ($entity_auto_generate) {
+        $entity_auto_generate = array_keys($entity_auto_generate);
+        $this->sectionStorages = array_filter($sectionStorages,
+          function ($key) use ($entity_auto_generate) {
+            foreach ($entity_auto_generate as $valid_entity_type_id) {
+              if (str_contains($key, $valid_entity_type_id . '.'))
+                return true;
+            }
+            return false;
+          }, ARRAY_FILTER_USE_KEY);
+        //
+        /**
+         *
+         * @var \Drupal\layoutgenentitystyles\Services\ParagraphLoader $paragraph_loader
+         */
+        $paragraph_loader = \Drupal::service('layoutgenentitystyles.paragraph_loader');
+        $paragraph_loader->loadGroupedByNodeType($entity_auto_generate);
+      }
+      dd($entity_auto_generate, $this->sectionStorages);
       //
       $conf = $this->getConfigFOR_generate_style_theme();
       $sectionStorages = [];
