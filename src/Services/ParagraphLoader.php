@@ -41,51 +41,38 @@ class ParagraphLoader {
    */
   public function loadGroupedByNodeType(array $entities) {
     $EntitiesParagraph_fields = $this->findParagraphReferenceFields($entities);
+    // dump($entities, $EntitiesParagraph_fields);
     $grouped = [];
     foreach ($EntitiesParagraph_fields as $entity_type_id => $paragraph_fields) {
       $grouped[$entity_type_id] = [];
       if (empty($paragraph_fields))
         continue;
-      // Construire une requête efficace
-      $query = $this->entityTypeManager->getStorage($entity_type_id)->getQuery()->accessCheck(FALSE);
-      // Ajouter une condition OR pour tous les champs de paragraphes
-      $or_group = $query->orConditionGroup();
+      /**
+       *
+       * @var \Drupal\Core\Entity\EntityStorageInterface $EntityStorage
+       */
+      $EntityStorage = $this->entityTypeManager->getStorage($entity_type_id);
+      $table = $EntityStorage->getEntityType()->getBaseTable();
+      $id = $EntityStorage->getEntityType()->getKey('id');
+      /**
+       *
+       * @var \Drupal\Core\Database\Connection $connexion
+       */
+      $connexion = \Drupal::database();
+      
       foreach ($paragraph_fields as $field) {
-        $or_group->exists($field);
-      }
-      $query->condition($or_group);
-      $ids = $query->execute();
-      if (empty($ids))
-        continue;
-      //
-      dd($ids);
-      // Charger les nœuds avec leurs références de paragraphes
-      $entities = $this->entityTypeManager->getStorage($entity_type_id)->loadMultiple($ids);
-      foreach ($entities as $entity) {
-        $node_type = $entity->bundle();
-        
-        if (!isset($grouped[$node_type])) {
-          $grouped[$node_type] = [];
-        }
-        
-        // Vérifier tous les champs possibles
-        foreach ($paragraph_fields as $field) {
-          if ($entity->hasField($field)) {
-            foreach ($entity->get($field) as $item) {
-              if ($paragraph = $item->entity) {
-                $grouped[$node_type][] = [
-                  'paragraph' => $paragraph,
-                  'node' => $entity,
-                  'field_name' => $field,
-                  'paragraph_type' => $paragraph->bundle()
-                ];
-              }
-            }
-          }
-        }
+        /**
+         *
+         * @var \Drupal\mysql\Driver\Database\mysql\Select $query
+         */
+        $query = $connexion->select($table, $table)->fields($table);
+        $tableJoin = $entity_type_id . '__' . $field;
+        $condition = $tableJoin . '.entity_id = ' . $table . '.' . $id;
+        $query->addJoin('INNER', $tableJoin, $tableJoin, $condition);
+        $query->groupBy($table . '.type');
+        $grouped[$entity_type_id] = array_merge($grouped[$entity_type_id], $query->execute()->fetchAll(\PDO::FETCH_ASSOC));
       }
     }
-    
     return $grouped;
   }
   
