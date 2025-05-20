@@ -5,6 +5,7 @@ namespace Drupal\layoutgenentitystyles\Services;
 use Drupal\Core\Entity\EntityFieldManagerInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\field\Entity\FieldStorageConfig;
+use Drupal\Core\Entity\EntityStorageInterface;
 
 /**
  * Service pour charger les paragraphes groupés par type de nœud.
@@ -39,7 +40,7 @@ class ParagraphLoader {
    * Le but de cette function est de renvoyer les types de paragraphes qui ont
    * au moins 1 donnée pour les differentes entites fournit..
    */
-  public function loadGroupedByNodeType(array $entities) {
+  public function loadGroupedByParagraphType(array $entities) {
     $EntitiesParagraph_fields = $this->findParagraphReferenceFields($entities);
     // dump($entities, $EntitiesParagraph_fields);
     $grouped = [];
@@ -54,26 +55,46 @@ class ParagraphLoader {
       $EntityStorage = $this->entityTypeManager->getStorage($entity_type_id);
       $table = $EntityStorage->getEntityType()->getBaseTable();
       $id = $EntityStorage->getEntityType()->getKey('id');
-      /**
-       *
-       * @var \Drupal\Core\Database\Connection $connexion
-       */
-      $connexion = \Drupal::database();
       
       foreach ($paragraph_fields as $field) {
-        /**
-         *
-         * @var \Drupal\mysql\Driver\Database\mysql\Select $query
-         */
-        $query = $connexion->select($table, $table)->fields($table);
-        $tableJoin = $entity_type_id . '__' . $field;
-        $condition = $tableJoin . '.entity_id = ' . $table . '.' . $id;
-        $query->addJoin('INNER', $tableJoin, $tableJoin, $condition);
-        $query->groupBy($table . '.type');
+        $query = $this->updateQuery($table, $entity_type_id, $field, $id, $EntityStorage);
         $grouped[$entity_type_id] = array_merge($grouped[$entity_type_id], $query->execute()->fetchAll(\PDO::FETCH_ASSOC));
       }
     }
     return $grouped;
+  }
+  
+  /**
+   * Permet de construire la requete pour compte les entites en relations avec
+   * les paragraphes.
+   *
+   * @param string $table
+   * @return \Drupal\mysql\Driver\Database\mysql\Select
+   */
+  public function updateQuery(string $table, string $entity_type_id, string $field, mixed $id, EntityStorageInterface $EntityStorage) {
+    /**
+     *
+     * @var \Drupal\Core\Database\Connection $connexion
+     */
+    $connexion = \Drupal::database();
+    /**
+     *
+     * @var \Drupal\mysql\Driver\Database\mysql\Select $query
+     */
+    $query = $connexion->select($table, $table)->fields($table);
+    //
+    $tableJoin = $entity_type_id . '__' . $field;
+    $condition = $tableJoin . '.entity_id = ' . $table . '.' . $id;
+    $query->addJoin('INNER', $tableJoin, $tableJoin, $condition);
+    //
+    $tableJoin2 = 'paragraphs_item_field_data';
+    $condition2 = $tableJoin2 . '.id = ' . $table . '.' . $id;
+    $query->addJoin('INNER', $tableJoin2, $tableJoin2, $condition2);
+    $query->addField($tableJoin2, 'type', 'paragraph_type');
+    //
+    $query->groupBy($tableJoin2 . '.type');
+    $query->groupBy($table . '.type');
+    return $query;
   }
   
   /**

@@ -116,17 +116,6 @@ class LayoutgenentitystylesController extends ControllerBase {
   }
   
   /**
-   *
-   * @return string[]
-   */
-  public function ApiManuelGenerate($hostname) {
-    $this->LayoutgenentitystylesServices->domaine_id = $hostname;
-    $this->LayoutgenentitystylesServices->shoMessage = false;
-    $this->LayoutgenentitystylesServices->generateAllFilesStyles();
-    return $this->reponse($this->LayoutgenentitystylesServices->getLibraries());
-  }
-  
-  /**
    * Retrieves the plugin form for a given layout.
    *
    * @param \Drupal\Core\Layout\LayoutInterface $layout
@@ -163,5 +152,4 @@ class LayoutgenentitystylesController extends ControllerBase {
     $reponse->setContent($configs);
     return $reponse;
   }
-  
 }

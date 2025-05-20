@@ -14,12 +14,3 @@ layoutgenentitystyles.settings_form:
   requirements:
     _permission: 'administer layoutgenentitystyles configuration'
 
-layoutgenentitystyles.apigenerate:
-  path: '/layoutgenentitystyles/manuel/api-generate/{hostname}'
-  defaults:
-    _title: 'Add scss import to theme'
-    _controller: '\Drupal\layoutgenentitystyles\Controller\LayoutgenentitystylesController::ApiManuelGenerate'
-  requirements:
-    _access: 'TRUE'
-    
-    
