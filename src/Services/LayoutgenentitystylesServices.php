@@ -18,6 +18,7 @@ use Drupal\generate_style_theme\Services\ManageFileCustomStyle;
 use Drupal\generate_style_theme\Services\ManageFileMailStyle;
 use Drupal\Component\Utility\Timer;
 use Drupal\Core\Entity\EntityInterface;
+use Drupal\layout_builder\Section;
 
 class LayoutgenentitystylesServices extends ControllerBase {
   /**
@@ -57,17 +58,6 @@ class LayoutgenentitystylesServices extends ControllerBase {
    * @var array
    */
   protected $sectionStoragesByLayout = [];
-  
-  /**
-   * Contient la liste des entites donc on va rechercher s'il possede les
-   * données pour le champs "layout_builder__layout"
-   * Pour le moment on fait uniquement pour l'ent
-   *
-   * @var array
-   */
-  protected $entitiesListLayoutBuilderLayout = [
-    'cv_entity'
-  ];
   
   /**
    * permet de determiner si l'utilisateur a le role administrator;
@@ -219,15 +209,15 @@ class LayoutgenentitystylesServices extends ControllerBase {
     $this->sectionStoragesByLayout = $this->getListSectionStorages();
     
     // dd($layout_builder->toArray(), $layout_builder->getTargetBundle());
-    foreach ($this->sectionStoragesByLayout as $section_storage => $entityView) {
+    foreach ($this->sectionStoragesByLayout as $section_storage_id => $entityView) {
       /**
        *
        * @var LayoutBuilderEntityViewDisplay $entityView
        */
-      $layout_builder = $this->getSectionsForEntityView($section_storage, $entityView);
+      $layout_builder = $this->getSectionsForEntityView($section_storage_id, $entityView);
       $sections = $layout_builder['sections'] ?? [];
       if ($sections) {
-        $this->libraries[$section_storage] = $this->getLibraryForEachSections($sections);
+        $this->libraries[$section_storage_id] = $this->getLibraryForEachSections($sections);
         // $this->getOverrideScss($sections);
       }
       // Si l'entité d'affichage accepte la surcharge et que nous sommes sur le
@@ -244,29 +234,48 @@ class LayoutgenentitystylesServices extends ControllerBase {
         $BundleEntityType = $entitiesContentsStorage->getEntityType()->getBundleEntityType();
         if ($BundleEntityType && $key) {
           $entities = $this->entityTypeManager()->getStorage($EntityTypeId)->loadByProperties([
-            $key => $bundle
+            $key => $bundle,
+            'status' => 1
           ]);
         }
         else
           $entities = $this->entityTypeManager()->getStorage($EntityTypeId)->loadByProperties();
-        //
+        /**
+         * Concernant $entities il contient les contenus publiés et ceux non
+         * publiées.
+         * Pour la suite il faudra regrouper les styles par types d'entites et
+         * par entites de base surcharger.
+         * Exemple: si on a un type node.page.
+         * - On aurra un fichier generer à partir de node.page
+         * - Si le contenu qu'on visite est surchargé (layout_builder__layout),
+         * on va egalement charger les styles surcharge ( pour ce contenu ).
+         */
         if ($entities) {
-          
           foreach ($entities as $entity) {
+            /**
+             *
+             * @var \Drupal\block_content\Entity\BlockContent $entity
+             */
             if ($entity->hasField('layout_builder__layout')) {
               $sections = [];
               $listSetions = $entity->get('layout_builder__layout')->getValue();
-              $section_storage = $entity->getEntityTypeId() . '.' . $entity->bundle() . '.' . $entity->id();
+              $display_id = $entity->getEntityTypeId() . '__' . $entity->bundle() . '__' . $entity->id();
               if ($listSetions) {
                 foreach ($listSetions as $value) {
-                  // dd($listSetions, $value, reset($value));
-                  $sections[] = reset($value);
+                  /**
+                   *
+                   * @var \Drupal\layout_builder\Section $section
+                   */
+                  $section = reset($value);
+                  $this->generateStyleForFieldsFromEntitySection($section, $display_id, $entity);
+                  $sections[] = $section;
                 }
               }
-              
               //
-              if ($sections)
-                $this->generateStyleForFieldsFromEntity($sections, $section_storage, $entity);
+              if ($sections) {
+                $section_storage_override_id = $entity->getEntityTypeId() . '.' . $entity->bundle() . '.' . $entity->id();
+                $this->generateStyleFromSection($sections, $section_storage_override_id);
+              }
             }
           }
         }
@@ -513,6 +522,7 @@ class LayoutgenentitystylesServices extends ControllerBase {
   }
   
   /**
+   * Pour les contenus surcharger.
    * Recuperer les librairies definies dans les sections.
    * Cela fonctionne dans la mesure ou une section contient un layout, et au
    * niveau de ce layout on a definit une library.
@@ -524,7 +534,7 @@ class LayoutgenentitystylesServices extends ControllerBase {
    *        doublons).
    */
   function generateStyleFromSection(array $sections, $section_storage_id) {
-    if ($this->isAdmin)
+    if ($this->isAdmin && $this->shoMessage)
       \Drupal::messenger()->addStatus(" Les styles (scss/js) maj via une entité surchargée ");
     $this->libraries[$section_storage_id] = $this->getLibraryForEachSections($sections);
     $this->addStylesToConfigTheme();
@@ -542,13 +552,17 @@ class LayoutgenentitystylesServices extends ControllerBase {
   public function generateStyleForFieldsFromEntity(array $sections, $section_storage_id, EntityInterface $entity) {
     $display_id = \str_replace(".", "__", $section_storage_id);
     foreach ($sections as $section) {
-      $components = $section->getComponents();
-      foreach ($components as $component) {
-        $ar = $component->toArray();
-        if (!empty($ar['configuration']['formatter']['settings']['layoutgenentitystyles_view'])) {
-          $id = \str_replace(".", "__", $ar['configuration']['id']) . ':' . $entity->id();
-          $this->addStyleFromFieldsEntitiesOverride($ar['configuration']['formatter']['settings']['layoutgenentitystyles_view'], $id, $display_id, 'fields');
-        }
+      $this->generateStyleForFieldsFromEntitySection($section, $display_id, $entity);
+    }
+  }
+  
+  protected function generateStyleForFieldsFromEntitySection(Section $section, $display_id, EntityInterface $entity) {
+    $components = $section->getComponents();
+    foreach ($components as $component) {
+      $ar = $component->toArray();
+      if (!empty($ar['configuration']['formatter']['settings']['layoutgenentitystyles_view'])) {
+        $id = \str_replace(".", "__", $ar['configuration']['id']) . ':' . $entity->id();
+        $this->addStyleFromFieldsEntitiesOverride($ar['configuration']['formatter']['settings']['layoutgenentitystyles_view'], $id, $display_id, 'fields');
       }
     }
   }
@@ -701,7 +715,6 @@ class LayoutgenentitystylesServices extends ControllerBase {
           $this->messenger()->addWarning(" Ce plugin n'existe plus :  " . $section->getLayoutId(), true);
       }
     }
-    // dump($libraries);
     return $libraries;
   }
   
