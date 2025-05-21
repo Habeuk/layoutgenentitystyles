@@ -138,13 +138,14 @@ class LayoutgenentitystylesServices extends ControllerBase {
       });
       if ($entity_auto_generate) {
         $entity_auto_generate = array_keys($entity_auto_generate);
-        $this->sectionStorages = array_filter($DefaultsSectionStorages, function ($key) use ($entity_auto_generate) {
-          foreach ($entity_auto_generate as $valid_entity_type_id) {
-            if (str_contains($key, $valid_entity_type_id . '.'))
-              return true;
-          }
-          return false;
-        }, ARRAY_FILTER_USE_KEY);
+        $this->sectionStorages = array_filter($DefaultsSectionStorages,
+          function ($key) use ($entity_auto_generate) {
+            foreach ($entity_auto_generate as $valid_entity_type_id) {
+              if (str_contains($key, $valid_entity_type_id . '.'))
+                return true;
+            }
+            return false;
+          }, ARRAY_FILTER_USE_KEY);
         // On recupere les paragraphes attaché à un layout.
         // ( Dans cette approche, on considere que tous les layouts sont
         // associés à des paragraphes ).
@@ -208,7 +209,6 @@ class LayoutgenentitystylesServices extends ControllerBase {
   function generateAllFilesStyles() {
     $this->loadAllViews();
     $this->sectionStoragesByLayout = $this->getListSectionStorages();
-    
     foreach ($this->sectionStoragesByLayout as $entityView) {
       $this->generateSTyleFromEntity($entityView, false);
       $this->generateStyleFromFieldConfigDisplay($entityView, false);
@@ -245,38 +245,13 @@ class LayoutgenentitystylesServices extends ControllerBase {
          */
         if ($entities) {
           foreach ($entities as $entity) {
-            /**
-             *
-             * @var \Drupal\block_content\Entity\BlockContent $entity
-             */
-            if ($entity->hasField('layout_builder__layout')) {
-              $sections = [];
-              $listSetions = $entity->get('layout_builder__layout')->getValue();
-              $display_id = $entity->getEntityTypeId() . '__' . $entity->bundle() . '__' . $entity->id();
-              if ($listSetions) {
-                foreach ($listSetions as $value) {
-                  /**
-                   *
-                   * @var \Drupal\layout_builder\Section $section
-                   */
-                  $section = reset($value);
-                  $this->generateStyleForFieldsFromEntitySection($section, $display_id, $entity, false);
-                  $sections[] = $section;
-                }
-              }
-              //
-              if ($sections) {
-                $section_storage_override_id = $entity->getEntityTypeId() . '.' . $entity->bundle() . '.' . $entity->id();
-                $this->generateStyleFromSection($sections, $section_storage_override_id, false);
-              }
-            }
+            $this->getAllStylesFromOverrideEntity($entity);
           }
         }
       }
     }
-    // dd($this->libraries);
-    //
     $this->getCustomLibrary();
+    $this->loadStyleFromBlocs();
     // La il ya un soucis, il faut determiner si elle detruit les styles,
     // ajoutées par la configuration surcharger.
     /**
@@ -292,6 +267,29 @@ class LayoutgenentitystylesServices extends ControllerBase {
     $this->ManageFileCustomStyle->generateCustomFile();
     // On regenere le fichier custom d'email.
     $this->ManageFileMailStyle->generateCustomFile();
+  }
+  
+  protected function getAllStylesFromOverrideEntity(EntityInterface $entity) {
+    if ($entity->hasField('layout_builder__layout')) {
+      $sections = [];
+      $listSetions = $entity->get('layout_builder__layout')->getValue();
+      $display_id = $entity->getEntityTypeId() . '__' . $entity->bundle() . '__' . $entity->id();
+      if ($listSetions) {
+        foreach ($listSetions as $value) {
+          /**
+           *
+           * @var \Drupal\layout_builder\Section $section
+           */
+          $section = reset($value);
+          $this->generateStyleForFieldsFromEntitySection($section, $display_id, $entity, false);
+          $sections[] = $section;
+        }
+      }
+      if ($sections) {
+        $section_storage_override_id = $entity->getEntityTypeId() . '.' . $entity->bundle() . '.' . $entity->id();
+        $this->generateStyleFromSection($sections, $section_storage_override_id, false);
+      }
+    }
   }
   
   /**
@@ -597,7 +595,7 @@ class LayoutgenentitystylesServices extends ControllerBase {
    * Ajoute les styles dans la configuration du theme.
    */
   protected function addStylesToConfigTheme($clean = false) {
-    $defaultThemeName = $this->getCurrentTheme();
+    $defaultThemeName = $this->getDefaultTheme();
     $ModuleConf = $this->getConfigFOR_generate_style_theme();
     $conf = \Drupal\generate_style_theme\GenerateStyleTheme::getDynamicConfig($defaultThemeName, $ModuleConf);
     $config = $this->ConfigFactory->getEditable($conf['settings']);
@@ -631,7 +629,90 @@ class LayoutgenentitystylesServices extends ControllerBase {
       $this->messenger()->addStatus(" Vous devez regenerer votre theme ");
   }
   
-  public function getCurrentTheme() {
+  /**
+   * Certains entites sont ajouté au niveau des blocs cest generalement le cas
+   * des block_content.
+   */
+  protected function loadStyleFromBlocs() {
+    $defaultThemeName = $this->getDefaultTheme();
+    $blocks = \Drupal::entityTypeManager()->getStorage('block')->loadByProperties([
+      'theme' => $defaultThemeName,
+      'status' => 1
+    ]);
+    /**
+     *
+     * @var \Drupal\layoutgenentitystyles\Services\ParagraphLoader $paragraph_loader
+     */
+    $paragraph_loader = \Drupal::service('layoutgenentitystyles.paragraph_loader');
+    foreach ($blocks as $block) {
+      /**
+       *
+       * @var \Drupal\block\Entity\Block $block
+       */
+      $plugin = $block->get('plugin');
+      if ($plugin && str_contains($plugin, ":")) {
+        [
+          $entity_type_id,
+          $uuid_entity
+        ] = explode(":", $plugin);
+        if ($entity_type_id && !empty($uuid_entity)) {
+          /**
+           *
+           * @var \Drupal\block_content\Entity\BlockContent $entity
+           */
+          $entity = \Drupal::service('entity.repository')->loadEntityByUuid($entity_type_id, $uuid_entity);
+          if ($entity->getEntityType()->hasKey('bundle')) {
+            $view_id = $entity_type_id . '.' . $entity->bundle() . '.default';
+          }
+          else
+            $view_id = $entity_type_id . '.' . $entity_type_id . '.default';
+          $entityView = $this->entityTypeManager()->getStorage('entity_view_display')->load($view_id);
+          // dump($entity->id(), $view_id);
+          // On recupere les styles directements lié à la mise en forme.
+          if ($entityView) {
+            $this->generateSTyleFromEntity($entityView, false);
+            $this->generateStyleFromFieldConfigDisplay($entityView, false);
+          }
+          $this->getAllStylesFromOverrideEntity($entity);
+          // On recupere egalement les champs de types references donc la
+          // reference est paragraph.
+          $entity_auto_generate = [
+            $entity_type_id
+          ];
+          $paragraph_fields = $paragraph_loader->findParagraphReferenceFields($entity_auto_generate);
+          if ($paragraph_fields) {
+            $paragraph_fields = reset($paragraph_fields);
+            foreach ($paragraph_fields as $fielName) {
+              /**
+               *
+               * @var \Drupal\Core\Field\EntityReferenceFieldItemList $FieldItemList
+               */
+              if ($entity->hasField($fielName)) {
+                $values = $entity->get($fielName)->getValue();
+                foreach ($values as $value) {
+                  $EntityParagraph = $this->entityTypeManager()->getStorage('paragraph')->load($value['target_id']);
+                  $paragraph__view_id = 'paragraph.' . $EntityParagraph->bundle() . '.default';
+                  $entityView = $this->entityTypeManager()->getStorage('entity_view_display')->load($paragraph__view_id);
+                  if ($entityView) {
+                    $this->generateSTyleFromEntity($entityView, false);
+                    $this->generateStyleFromFieldConfigDisplay($entityView, false);
+                  }
+                  $this->getAllStylesFromOverrideEntity($EntityParagraph);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  
+  /**
+   * Recupere le theme par defaut.
+   *
+   * @return string
+   */
+  public function getDefaultTheme() {
     return \Drupal::config('system.theme')->get('default');
   }
   
@@ -730,6 +811,5 @@ class LayoutgenentitystylesServices extends ControllerBase {
     
     throw new \InvalidArgumentException(sprintf('The "%s" layout does not provide a configuration form', $layout->getPluginId()));
   }
-  
 }
 
