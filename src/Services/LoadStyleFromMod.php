@@ -71,7 +71,7 @@ class LoadStyleFromMod {
       $this->readFile($filename, $file, $libraries);
     }
     else {
-      $this->messenger->addWarning($type_name . ', File not exit : ' . $file);
+      $this->messenger->addWarning($type_name . '/' . $filename . ', File not exit : ' . $file);
     }
   }
   
@@ -102,4 +102,5 @@ class LoadStyleFromMod {
       $libraries['js'][$filename] = $js;
     }
   }
+  
 }

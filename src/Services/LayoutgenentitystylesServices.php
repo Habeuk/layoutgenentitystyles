@@ -137,14 +137,13 @@ class LayoutgenentitystylesServices extends ControllerBase {
       });
       if ($entity_auto_generate) {
         $entity_auto_generate = array_keys($entity_auto_generate);
-        $this->sectionStorages = array_filter($DefaultsSectionStorages,
-          function ($key) use ($entity_auto_generate) {
-            foreach ($entity_auto_generate as $valid_entity_type_id) {
-              if (str_contains($key, $valid_entity_type_id . '.'))
-                return true;
-            }
-            return false;
-          }, ARRAY_FILTER_USE_KEY);
+        $this->sectionStorages = array_filter($DefaultsSectionStorages, function ($key) use ($entity_auto_generate) {
+          foreach ($entity_auto_generate as $valid_entity_type_id) {
+            if (str_contains($key, $valid_entity_type_id . '.'))
+              return true;
+          }
+          return false;
+        }, ARRAY_FILTER_USE_KEY);
         // On recupere les paragraphes attaché à un layout.
         // ( Dans cette approche, on considere que tous les layouts sont
         // associés à des paragraphes ).
@@ -191,7 +190,10 @@ class LayoutgenentitystylesServices extends ControllerBase {
         if (!empty($build['display'])) {
           foreach ($build['display'] as $display_id => $value) {
             if (!empty($value['display_options']['style']['options']['layoutgenentitystyles_view'])) {
-              $this->addStyleFromView($value['display_options']['style']['options']['layoutgenentitystyles_view'], $build['id'], $display_id);
+              $subdir = '';
+              $type = 'module';
+              $themeBuild = false;
+              $this->addStyleFromView($value['display_options']['style']['options']['layoutgenentitystyles_view'], $build['id'], $display_id, $subdir, $type, $themeBuild);
             }
           }
         }
@@ -204,11 +206,9 @@ class LayoutgenentitystylesServices extends ControllerBase {
    * du theme actif.
    */
   function generateAllFilesStyles() {
-    // Timer::start('generateAllFilesStyles');
     $this->loadAllViews();
     $this->sectionStoragesByLayout = $this->getListSectionStorages();
     
-    // dd($layout_builder->toArray(), $layout_builder->getTargetBundle());
     foreach ($this->sectionStoragesByLayout as $section_storage_id => $entityView) {
       /**
        *
@@ -218,7 +218,7 @@ class LayoutgenentitystylesServices extends ControllerBase {
       $sections = $layout_builder['sections'] ?? [];
       if ($sections) {
         $this->libraries[$section_storage_id] = $this->getLibraryForEachSections($sections);
-        // $this->getOverrideScss($sections);
+        // if (str_contains($section_storage_id, "fullswiperoptions."))
       }
       // Si l'entité d'affichage accepte la surcharge et que nous sommes sur le
       // rendu par defaut.
@@ -267,21 +267,21 @@ class LayoutgenentitystylesServices extends ControllerBase {
                    * @var \Drupal\layout_builder\Section $section
                    */
                   $section = reset($value);
-                  $this->generateStyleForFieldsFromEntitySection($section, $display_id, $entity);
+                  $this->generateStyleForFieldsFromEntitySection($section, $display_id, $entity, false);
                   $sections[] = $section;
                 }
               }
               //
               if ($sections) {
                 $section_storage_override_id = $entity->getEntityTypeId() . '.' . $entity->bundle() . '.' . $entity->id();
-                $this->generateStyleFromSection($sections, $section_storage_override_id);
+                $this->generateStyleFromSection($sections, $section_storage_override_id, false);
               }
             }
           }
         }
       }
     }
-    
+    // dd($this->libraries);
     //
     $this->getCustomLibrary();
     // La il ya un soucis, il faut determiner si elle detruit les styles,
@@ -291,7 +291,6 @@ class LayoutgenentitystylesServices extends ControllerBase {
      * mecanisme.
      */
     // On masque pour le moment.
-    // $this->addStylesToConfigTheme(true);
     // il faudra soit separer les sauvegarde au niveau du theme, et ajouté un
     // moyen qui permet de mettre à jours les configirations surcharger.
     $this->addStylesToConfigTheme(true);
@@ -308,18 +307,20 @@ class LayoutgenentitystylesServices extends ControllerBase {
    *
    * @param string $library
    */
-  function addStyleFromView(string $library, $id, $display_id, $subdir = '', $type = 'module') {
+  function addStyleFromView(string $library, $id, $display_id, $subdir = '', $type = 'module', $themeBuild = true) {
     [
       $module,
       $filename
     ] = explode("/", $library);
     if ($module && $filename) {
-      $this->libraries[$module . '.' . $id . '.' . $display_id] = [
+      $key = $module . '.views__' . $id . '.' . $display_id;
+      $this->libraries[$key] = [
         'scss' => [],
         'js' => []
       ];
-      $this->LoadStyleFromMod->getStyleDefault($module, $filename, $this->libraries[$module . '.' . $id . '.' . $display_id], $subdir, $type);
-      $this->addStylesToConfigTheme();
+      $this->LoadStyleFromMod->getStyleDefault($module, $filename, $this->libraries[$key], $subdir, $type);
+      if ($themeBuild)
+        $this->addStylesToConfigTheme();
     }
   }
   
@@ -455,7 +456,7 @@ class LayoutgenentitystylesServices extends ControllerBase {
         }
         $subdir = isset($value['subdir']) ? $value['subdir'] : '';
         $type = !empty($value['type']) ? $value['type'] : 'module';
-        $this->addStyleFromView($value['library'], $value['id'], $value['display_id'], $subdir, $type);
+        $this->addStyleFromView($value['library'], $value['id'], $value['display_id'], $subdir, $type, false);
       }
     }
   }
@@ -533,11 +534,12 @@ class LayoutgenentitystylesServices extends ControllerBase {
    *        cv_entity.cv_entity.150( cette nomenclature vise à eviter les
    *        doublons).
    */
-  function generateStyleFromSection(array $sections, $section_storage_id) {
+  function generateStyleFromSection(array $sections, $section_storage_id, $buildThme = true) {
     if ($this->isAdmin && $this->shoMessage)
       \Drupal::messenger()->addStatus(" Les styles (scss/js) maj via une entité surchargée ");
     $this->libraries[$section_storage_id] = $this->getLibraryForEachSections($sections);
-    $this->addStylesToConfigTheme();
+    if ($buildThme)
+      $this->addStylesToConfigTheme();
   }
   
   /**
@@ -552,17 +554,17 @@ class LayoutgenentitystylesServices extends ControllerBase {
   public function generateStyleForFieldsFromEntity(array $sections, $section_storage_id, EntityInterface $entity) {
     $display_id = \str_replace(".", "__", $section_storage_id);
     foreach ($sections as $section) {
-      $this->generateStyleForFieldsFromEntitySection($section, $display_id, $entity);
+      $this->generateStyleForFieldsFromEntitySection($section, $display_id, $entity, true);
     }
   }
   
-  protected function generateStyleForFieldsFromEntitySection(Section $section, $display_id, EntityInterface $entity) {
+  protected function generateStyleForFieldsFromEntitySection(Section $section, $display_id, EntityInterface $entity, $themeBuild = true) {
     $components = $section->getComponents();
     foreach ($components as $component) {
       $ar = $component->toArray();
       if (!empty($ar['configuration']['formatter']['settings']['layoutgenentitystyles_view'])) {
         $id = \str_replace(".", "__", $ar['configuration']['id']) . ':' . $entity->id();
-        $this->addStyleFromFieldsEntitiesOverride($ar['configuration']['formatter']['settings']['layoutgenentitystyles_view'], $id, $display_id, 'fields');
+        $this->addStyleFromFieldsEntitiesOverride($ar['configuration']['formatter']['settings']['layoutgenentitystyles_view'], $id, $display_id, 'fields', 'module', $themeBuild);
       }
     }
   }
@@ -577,7 +579,7 @@ class LayoutgenentitystylesServices extends ControllerBase {
    *
    * @param string $library
    */
-  protected function addStyleFromFieldsEntitiesOverride(string $library, $id, $display_id, $subdir = '', $type = 'module') {
+  protected function addStyleFromFieldsEntitiesOverride(string $library, $id, $display_id, $subdir = '', $type = 'module', $themeBuild = true) {
     [
       $module,
       $filename
@@ -588,7 +590,8 @@ class LayoutgenentitystylesServices extends ControllerBase {
         'js' => []
       ];
       $this->LoadStyleFromMod->getStyleDefault($module, $filename, $this->libraries[$module . '.' . $id . '.' . $display_id], $subdir, $type);
-      $this->addStylesToConfigTheme();
+      if ($themeBuild)
+        $this->addStylesToConfigTheme();
     }
   }
   
@@ -705,10 +708,6 @@ class LayoutgenentitystylesServices extends ControllerBase {
           if ($subdir)
             $this->LoadStyleFromMod->getStyle($library, $subdir, $libraries);
         }
-        else {
-          if ($this->isAdmin)
-            $this->messenger()->addWarning(' Library not set :: ' . $plugin->getPluginId());
-        }
       }
       catch (\Exception $e) {
         if ($this->isAdmin)
@@ -742,5 +741,6 @@ class LayoutgenentitystylesServices extends ControllerBase {
     
     throw new \InvalidArgumentException(sprintf('The "%s" layout does not provide a configuration form', $layout->getPluginId()));
   }
+  
 }
 

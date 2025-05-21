@@ -56,7 +56,6 @@ class LayoutgenentitystylesController extends ControllerBase {
     $this->LayoutgenentitystylesServices->generateAllFilesStyles();
     $this->messenger()->addStatus(" Style maj, vous devez regerener les fichiers du theme. ");
     $librairies = $this->LayoutgenentitystylesServices->getLibraries();
-    // dump($librairies);
     $items = [];
     foreach ($librairies as $section_storage => $librairy) {
       $fgt = [];
@@ -152,4 +151,5 @@ class LayoutgenentitystylesController extends ControllerBase {
     $reponse->setContent($configs);
     return $reponse;
   }
+  
 }
