@@ -19,6 +19,7 @@ use Drupal\generate_style_theme\Services\ManageFileMailStyle;
 use Drupal\Component\Utility\Timer;
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\layout_builder\Section;
+use Google\Service\NetworkManagement\Trace;
 
 class LayoutgenentitystylesServices extends ControllerBase {
   /**
@@ -153,7 +154,6 @@ class LayoutgenentitystylesServices extends ControllerBase {
          */
         $paragraph_loader = \Drupal::service('layoutgenentitystyles.paragraph_loader');
         $grouped = $paragraph_loader->loadGroupedByParagraphType($entity_auto_generate);
-        
         $sectionStorages = [];
         foreach ($grouped as $entity_type_id => $entity_type_ids) {
           foreach ($entity_type_ids as $infor_entity) {
@@ -180,7 +180,7 @@ class LayoutgenentitystylesServices extends ControllerBase {
     if (!empty($ids)) {
       $views = $viewEntity->loadMultiple($ids);
       // dump($views);
-      foreach ($views as $k => $view) {
+      foreach ($views as $view) {
         /**
          *
          * @var \Drupal\views\Entity\View $view
@@ -209,17 +209,10 @@ class LayoutgenentitystylesServices extends ControllerBase {
     $this->loadAllViews();
     $this->sectionStoragesByLayout = $this->getListSectionStorages();
     
-    foreach ($this->sectionStoragesByLayout as $section_storage_id => $entityView) {
-      /**
-       *
-       * @var LayoutBuilderEntityViewDisplay $entityView
-       */
-      $layout_builder = $this->getSectionsForEntityView($section_storage_id, $entityView);
-      $sections = $layout_builder['sections'] ?? [];
-      if ($sections) {
-        $this->libraries[$section_storage_id] = $this->getLibraryForEachSections($sections);
-        // if (str_contains($section_storage_id, "fullswiperoptions."))
-      }
+    foreach ($this->sectionStoragesByLayout as $entityView) {
+      $this->generateSTyleFromEntity($entityView, false);
+      $this->generateStyleFromFieldConfigDisplay($entityView, false);
+      $layout_builder = $this->getSectionsForEntityView($entityView);
       // Si l'entité d'affichage accepte la surcharge et que nous sommes sur le
       // rendu par defaut.
       if (!empty($layout_builder['allow_custom']) && $entityView->getMode() == 'default') {
@@ -331,8 +324,8 @@ class LayoutgenentitystylesServices extends ControllerBase {
    * @param string $display_id
    * @param string $subdir
    */
-  function addStyleFromModule(string $library, $id, $display_id, $subdir = '') {
-    $this->addStyleFromExtention($library, $id, $display_id, $subdir, 'module');
+  function addStyleFromModule(string $library, $id, $display_id, $subdir = '', $saveStyle = true) {
+    $this->addStyleFromExtention($library, $id, $display_id, $subdir, 'module', $saveStyle);
   }
   
   /**
@@ -342,8 +335,8 @@ class LayoutgenentitystylesServices extends ControllerBase {
    * @param string $display_id
    * @param string $subdir
    */
-  function addStyleFromTheme(string $library, $id, $display_id, $subdir = 'dynamic_styles') {
-    $this->addStyleFromExtention($library, $id, $display_id, $subdir, 'theme');
+  function addStyleFromTheme(string $library, $id, $display_id, $subdir = 'dynamic_styles', $saveStyle = true) {
+    $this->addStyleFromExtention($library, $id, $display_id, $subdir, 'theme', $saveStyle);
   }
   
   /**
@@ -356,7 +349,7 @@ class LayoutgenentitystylesServices extends ControllerBase {
    *
    * @param string $library
    */
-  protected function addStyleFromExtention(string $library, $id, $display_id, $subdir = '', $type = 'module') {
+  protected function addStyleFromExtention(string $library, $id, $display_id, $subdir = '', $type = 'module', $saveStyle = true) {
     [
       $module,
       $filename
@@ -368,7 +361,8 @@ class LayoutgenentitystylesServices extends ControllerBase {
       ];
       $this->LoadStyleFromMod->getStyleDefault($module, $filename, $this->libraries[$module . '.' . $id . '.' . $display_id], $subdir, $type);
       $this->addStylesToConfigTheme();
-      $this->saveCustomLibrary($library, $id, $display_id, $module, $filename, $subdir, $type);
+      if ($saveStyle)
+        $this->saveCustomLibrary($library, $id, $display_id, $module, $filename, $subdir, $type);
     }
   }
   
@@ -396,14 +390,10 @@ class LayoutgenentitystylesServices extends ControllerBase {
    * Le but de cette fonction est d'eviter de perdre les librairies lors de la
    * regeneration des styles.
    * Mais cette approche devrai etre ameliorer ou trouver une autre logique.
-   * // Essaie
-   * 1- On pourrais sauvegarder cela dans un fichier de configuration
-   * specifique.
-   * 2- On sauvegarde uniquement les styles ajouter via les modules et les
+   * /// logique en place.
+   * 1- On sauvegarde uniquement les styles ajouter via les modules et les
    * styles liées aux entites ne seront plus sauvegarder. On va parcourrir les
    * entites et recuperer les differents styles ajouté par ces dernieres.
-   *
-   * @deprecated 2x
    */
   function saveCustomLibrary($library, $id, $display_id, $module, $filename, $subdir, $type = 'module') {
     $config = $this->ConfigFactory->getEditable('layoutgenentitystyles.settings');
@@ -462,18 +452,18 @@ class LayoutgenentitystylesServices extends ControllerBase {
   }
   
   /**
-   * Genere le style (à partir de la configuration du layout) apres la
-   * sauvegarde d'un model de layout.
+   * Genere les styles pour le mode d'affichage non surcharger.
    *
    * @param LayoutBuilderEntityViewDisplay $entity
    */
-  function generateSTyleFromEntity(LayoutBuilderEntityViewDisplay $entity) {
-    if ($this->isAdmin)
-      \Drupal::messenger()->addStatus(" Les styles (scss/js) maj via l'entité de configuration ");
-    $sections = $entity->getSections();
-    $section_storage = $entity->id();
-    $this->libraries[$section_storage] = $this->getLibraryForEachSections($sections);
-    $this->addStylesToConfigTheme();
+  function generateSTyleFromEntity(LayoutBuilderEntityViewDisplay $entityView, $themeBuild = true) {
+    $layout_builder = $this->getSectionsForEntityView($entityView);
+    $sections = $layout_builder['sections'] ?? [];
+    if ($sections) {
+      $this->libraries[$entityView->id()] = $this->getLibraryForEachSections($sections);
+      if ($themeBuild)
+        $this->addStylesToConfigTheme();
+    }
   }
   
   /**
@@ -491,12 +481,12 @@ class LayoutgenentitystylesServices extends ControllerBase {
    *
    * @param LayoutBuilderEntityViewDisplay $entity
    */
-  function generateStyleFromFieldConfigDisplay(LayoutBuilderEntityViewDisplay $entity) {
-    if ($this->isAdmin)
+  function generateStyleFromFieldConfigDisplay(LayoutBuilderEntityViewDisplay $entityView, $saveStyle = false) {
+    if ($this->isAdmin && $this->shoMessage)
       \Drupal::messenger()->addStatus(" Les styles (scss/js) maj via la configuration d'affichage du champs ");
     $display_id = 'default';
     // Si l'utilisateur a activé les layouts.
-    $sections = $entity->getSections();
+    $sections = $entityView->getSections();
     if ($sections)
       foreach ($sections as $section) {
         $components = $section->getComponents();
@@ -504,7 +494,7 @@ class LayoutgenentitystylesServices extends ControllerBase {
           $ar = $component->toArray();
           if (!empty($ar['configuration']['formatter']['settings']['layoutgenentitystyles_view'])) {
             $id = \str_replace(".", "__", $ar['configuration']['id']);
-            $this->addStyleFromModule($ar['configuration']['formatter']['settings']['layoutgenentitystyles_view'], $id, $display_id, 'fields');
+            $this->addStyleFromModule($ar['configuration']['formatter']['settings']['layoutgenentitystyles_view'], $id, $display_id, 'fields', $saveStyle);
           }
         }
       }
@@ -512,11 +502,11 @@ class LayoutgenentitystylesServices extends ControllerBase {
       /**
        * On recupere les champs et on regarde s'il ya des styles à importer.
        */
-      $fields = $entity->get('content');
+      $fields = $entityView->get('content');
       foreach ($fields as $field_name => $field) {
         if (!empty($field['settings']['layoutgenentitystyles_view'])) {
-          $id = \str_replace(".", "__", $entity->id() . '-' . $field_name);
-          $this->addStyleFromModule($field['settings']['layoutgenentitystyles_view'], $id, $display_id, 'fields');
+          $id = \str_replace(".", "__", $entityView->id() . '-' . $field_name);
+          $this->addStyleFromModule($field['settings']['layoutgenentitystyles_view'], $id, $display_id, 'fields', $saveStyle);
         }
       }
     }
@@ -558,6 +548,14 @@ class LayoutgenentitystylesServices extends ControllerBase {
     }
   }
   
+  /**
+   * Recupere les styles definits au niveau des champs inclut dans les sections.
+   *
+   * @param Section $section
+   * @param string $display_id
+   * @param EntityInterface $entity
+   * @param boolean $themeBuild
+   */
   protected function generateStyleForFieldsFromEntitySection(Section $section, $display_id, EntityInterface $entity, $themeBuild = true) {
     $components = $section->getComponents();
     foreach ($components as $component) {
@@ -642,24 +640,15 @@ class LayoutgenentitystylesServices extends ControllerBase {
   }
   
   /**
-   * Get information about section..
+   * Recupere les informations à propos de "layout_builder".
    */
-  protected function getSectionsForEntityView($section_storage, LayoutBuilderEntityViewDisplay $entityView, $section_storage_type = 'defaults') {
+  protected function getSectionsForEntityView(LayoutBuilderEntityViewDisplay $entityView) {
     $layout_builder = $entityView->getThirdPartySettings('layout_builder');
     // si l'affichage layout_builder est activé.
     if (!empty($layout_builder['enabled'])) {
       return $layout_builder;
     }
     return [];
-    // methode deprecier.
-    // if (empty($this->sections[$section_storage])) {
-    // $contexts = [];
-    // $contexts['display'] = EntityContext::fromEntity($entityView);
-    // $sectionStorage =
-    // $this->sectionStorageManager->load($section_storage_type, $contexts);
-    // $this->sections[$section_storage] = $sectionStorage->getSections();
-    // }
-    // return $this->sections[$section_storage];
   }
   
   /**

@@ -24,11 +24,14 @@ class ParagraphLoader {
    */
   public function findParagraphReferenceFields(array $entities) {
     $paragraph_fields = [];
-    $field_map = $this->entityFieldManager->getFieldMap();
     foreach ($entities as $entity_type_id) {
-      foreach ($field_map[$entity_type_id] as $field_name => $field_info) {
-        $storage = FieldStorageConfig::loadByName($entity_type_id, $field_name);
-        if ($storage && $storage->getSetting('target_type') === 'paragraph') {
+      $fields = $this->entityFieldManager->getBaseFieldDefinitions($entity_type_id);
+      foreach ($fields as $field_name => $field_info) {
+        /**
+         *
+         * @var \Drupal\Core\Field\BaseFieldDefinition $field_info
+         */
+        if ($field_info->getSetting('target_type') === 'paragraph') {
           $paragraph_fields[$entity_type_id][$field_name] = $field_name;
         }
       }
@@ -113,4 +116,5 @@ class ParagraphLoader {
     
     return $data;
   }
+  
 }
