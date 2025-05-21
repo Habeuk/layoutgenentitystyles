@@ -59,23 +59,28 @@ class LayoutgenentitystylesController extends ControllerBase {
     $items = [];
     foreach ($librairies as $section_storage => $librairy) {
       $fgt = [];
-      
+      if (empty($librairy['scss']) && empty($librairy['js']))
+        continue;
       foreach ($librairy as $k => $librairy_style) {
+        
         foreach ($librairy_style as $pluginId => $files) {
-          $fgt[] = [
-            '#type' => 'html_tag',
-            '#tag' => 'strong',
-            '#value' => $k . ' :: ' . $pluginId
-          ];
-          foreach ($files as $file) {
+          if (!empty($files)) {
             $fgt[] = [
               '#type' => 'html_tag',
-              '#tag' => 'div',
-              '#value' => $file
+              '#tag' => 'strong',
+              '#value' => $k . ' :: ' . $pluginId
             ];
+            foreach ($files as $file) {
+              $fgt[] = [
+                '#type' => 'html_tag',
+                '#tag' => 'div',
+                '#value' => $file
+              ];
+            }
           }
         }
       }
+      
       $items[] = [
         '#type' => 'html_tag',
         '#tag' => 'li',
