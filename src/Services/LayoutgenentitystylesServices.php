@@ -132,8 +132,8 @@ class LayoutgenentitystylesServices extends ControllerBase {
       $entity_type_id = 'entity_view_display';
       $DefaultsSectionStorages = $this->entityTypeManager()->getStorage($entity_type_id)->loadByProperties();
       // On filtre les affichages par ceux donc l'utilisateur à valider.
-      $config = $this->ConfigFactory->getEditable('layoutgenentitystyles.settings');
-      $entity_auto_generate = array_filter($config->get('entity_auto_generate'), function ($value) {
+      $config = $this->getConfigs();
+      $entity_auto_generate = array_filter($config['entity_auto_generate'], function ($value) {
         return $value ?? false;
       });
       if ($entity_auto_generate) {
@@ -269,6 +269,12 @@ class LayoutgenentitystylesServices extends ControllerBase {
     $this->ManageFileMailStyle->generateCustomFile();
   }
   
+  /**
+   * Recupere les styles definie au niveau de l'entite (override) et au niveau
+   * des champs.
+   *
+   * @param EntityInterface $entity
+   */
   protected function getAllStylesFromOverrideEntity(EntityInterface $entity) {
     if ($entity->hasField('layout_builder__layout')) {
       $sections = [];
@@ -616,8 +622,6 @@ class LayoutgenentitystylesServices extends ControllerBase {
     if (!empty($defaultThemeName)) {
       $ids = $this->entityTypeManager()->getStorage('config_theme_entity')->getQuery()->condition('hostname', $defaultThemeName)->accessCheck(false)->execute();
       
-      // dump($defaultThemeName);
-      // die();
       if (!empty($ids)) {
         $entity = ConfigThemeEntity::load(reset($ids));
         $GenerateStyleTheme = new GenerateStyleTheme($entity);
@@ -634,11 +638,7 @@ class LayoutgenentitystylesServices extends ControllerBase {
    * des block_content.
    */
   protected function loadStyleFromBlocs() {
-    $defaultThemeName = $this->getDefaultTheme();
-    $blocks = \Drupal::entityTypeManager()->getStorage('block')->loadByProperties([
-      'theme' => $defaultThemeName,
-      'status' => 1
-    ]);
+    $blocks = $this->getCurrentblock();
     /**
      *
      * @var \Drupal\layoutgenentitystyles\Services\ParagraphLoader $paragraph_loader
@@ -649,23 +649,37 @@ class LayoutgenentitystylesServices extends ControllerBase {
        *
        * @var \Drupal\block\Entity\Block $block
        */
-      $plugin = $block->get('plugin');
-      if ($plugin && str_contains($plugin, ":")) {
-        [
-          $entity_type_id,
-          $uuid_entity
-        ] = explode(":", $plugin);
-        if ($entity_type_id && !empty($uuid_entity)) {
+      $settings = $block->get('settings');
+      // Generalement pour les block_content.
+      if (!empty($settings['id'])) {
+        $entity_type_id = null;
+        $entity = null;
+        if (str_contains($settings['id'], ":")) {
+          [
+            $entity_type_id,
+            $uuid_entity
+          ] = explode(":", $settings['id']);
           /**
            *
-           * @var \Drupal\block_content\Entity\BlockContent $entity
+           * @var EntityTypeInterface $entity
            */
-          $entity = \Drupal::service('entity.repository')->loadEntityByUuid($entity_type_id, $uuid_entity);
+          if ($this->entityTypeManager->hasDefinition($entity_type_id))
+            $entity = \Drupal::service('entity.repository')->loadEntityByUuid($entity_type_id, $uuid_entity);
+        }
+        // Si on utilise le module entity_block.
+        elseif (!empty($settings['entity'])) {
+          $entity_type_id = explode(':', $block->get('plugin'))[1] ?? null;
+          if ($entity_type_id && $this->entityTypeManager->hasDefinition($entity_type_id)) {
+            $entity = $this->entityTypeManager->getStorage($entity_type_id)->load($settings['entity']);
+          }
+        }
+        if ($entity_type_id && $entity) {
           if ($entity->getEntityType()->hasKey('bundle')) {
             $view_id = $entity_type_id . '.' . $entity->bundle() . '.default';
           }
           else
             $view_id = $entity_type_id . '.' . $entity_type_id . '.default';
+          //
           $entityView = $this->entityTypeManager()->getStorage('entity_view_display')->load($view_id);
           // dump($entity->id(), $view_id);
           // On recupere les styles directements lié à la mise en forme.
@@ -674,6 +688,7 @@ class LayoutgenentitystylesServices extends ControllerBase {
             $this->generateStyleFromFieldConfigDisplay($entityView, false);
           }
           $this->getAllStylesFromOverrideEntity($entity);
+          
           // On recupere egalement les champs de types references donc la
           // reference est paragraph.
           $entity_auto_generate = [
@@ -707,6 +722,14 @@ class LayoutgenentitystylesServices extends ControllerBase {
     }
   }
   
+  public function getCurrentblock() {
+    $defaultThemeName = $this->getDefaultTheme();
+    return \Drupal::entityTypeManager()->getStorage('block')->loadByProperties([
+      'theme' => $defaultThemeName,
+      'status' => 1
+    ]);
+  }
+  
   /**
    * Recupere le theme par defaut.
    *
@@ -718,6 +741,10 @@ class LayoutgenentitystylesServices extends ControllerBase {
   
   function getLibraries() {
     return $this->libraries;
+  }
+  
+  public function getConfigs() {
+    return \Drupal::config('layoutgenentitystyles.settings')->getRawData();
   }
   
   /**

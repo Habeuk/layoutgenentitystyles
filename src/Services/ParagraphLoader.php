@@ -21,6 +21,10 @@ class ParagraphLoader {
   
   /**
    * Trouve tous les champs de référence à des paragraphes.
+   * ( il faut recuperer toutes les references y compris les paragraphes. Un
+   * contenu par exemple node peut etre associer à un blocks_content qui est
+   * associer à un paragraphe ).
+   * ).
    */
   public function findParagraphReferenceFields(array $entities) {
     $paragraph_fields = [];
@@ -45,7 +49,6 @@ class ParagraphLoader {
    */
   public function loadGroupedByParagraphType(array $entities) {
     $EntitiesParagraph_fields = $this->findParagraphReferenceFields($entities);
-    // dump($entities, $EntitiesParagraph_fields);
     $grouped = [];
     foreach ($EntitiesParagraph_fields as $entity_type_id => $paragraph_fields) {
       $grouped[$entity_type_id] = [];
@@ -64,6 +67,7 @@ class ParagraphLoader {
         $grouped[$entity_type_id] = array_merge($grouped[$entity_type_id], $query->execute()->fetchAll(\PDO::FETCH_ASSOC));
       }
     }
+    // dd($EntitiesParagraph_fields, $grouped, $this);
     return $grouped;
   }
   
@@ -89,9 +93,11 @@ class ParagraphLoader {
     $tableJoin = $entity_type_id . '__' . $field;
     $condition = $tableJoin . '.entity_id = ' . $table . '.' . $id;
     $query->addJoin('INNER', $tableJoin, $tableJoin, $condition);
+    $query->addField($tableJoin, $field . '_target_id');
     //
     $tableJoin2 = 'paragraphs_item_field_data';
-    $condition2 = $tableJoin2 . '.id = ' . $table . '.' . $id;
+    $condition2 = $tableJoin2 . '.' . $field . '_target_id = ' . $table . '.' . $id;
+    $condition2 = $tableJoin2 . '.id = ' . $tableJoin . '.' . $field . '_target_id';
     $query->addJoin('INNER', $tableJoin2, $tableJoin2, $condition2);
     $query->addField($tableJoin2, 'type', 'paragraph_type');
     //
@@ -116,5 +122,4 @@ class ParagraphLoader {
     
     return $data;
   }
-  
 }
