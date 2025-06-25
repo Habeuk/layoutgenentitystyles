@@ -90,6 +90,12 @@ class LayoutgenentitystylesServices extends ControllerBase {
    */
   protected $ManageFileMailStyle;
   
+  /**
+   *
+   * @var \Drupal\layout_custom_style\StyleScssPluginManager
+   */
+  protected $StyleScssPlugin;
+  
   //
   // private $container;
   function __construct(SectionStorageManager $SectionStorageManager, LoadStyleFromMod $LoadStyleFromMod, ConfigFactory $ConfigFactory, ManageFileCustomStyle $ManageFileCustomStyle, ManageFileMailStyle $ManageFileMailStyle) {
@@ -267,6 +273,134 @@ class LayoutgenentitystylesServices extends ControllerBase {
     $this->ManageFileCustomStyle->generateCustomFile();
     // On regenere le fichier custom d'email.
     $this->ManageFileMailStyle->generateCustomFile();
+  }
+  
+  /**
+   * Permet de recuperer tous les styles ajouter via l'interface des Scss.js de
+   * layout.
+   */
+  public function getComponentsOverrides() {
+    // On filtre les affichages par ceux donc l'utilisateur à valider.
+    $config = $this->getConfigs();
+    $entity_auto_generate = array_filter($config['entity_auto_generate'], function ($value) {
+      return $value ?? false;
+    });
+    $entity_auto_generate = array_keys($entity_auto_generate);
+    foreach ($entity_auto_generate as $entity_type_id) {
+      /**
+       *
+       * @var \Drupal\Core\Entity\Sql\SqlContentEntityStorage $storage
+       */
+      $storage = $this->entityTypeManager()->getStorage($entity_type_id);
+      if (!$storage && !($storage instanceof \Drupal\Core\Entity\Sql\SqlContentEntityStorage))
+        continue;
+      $layoutEntitiesViews = [];
+      // Verifions si l'entite a des bundles.
+      if ($storage->getEntityType()->getBundleEntityType()) {
+        $BundleEntityType = $storage->getEntityType()->getBundleEntityType();
+        $BundleEntities = $this->entityTypeManager()->getStorage($BundleEntityType)->loadMultiple();
+        // Les bundles qui ont un affichage utilisant les layouts.
+        foreach ($BundleEntities as $BundleEntity) {
+          $this->getEntitiesModeDisplay($layoutEntitiesViews, $entity_type_id, $BundleEntity->id());
+        }
+      }
+      else {
+        $this->getEntitiesModeDisplay($layoutEntitiesViews, $entity_type_id, $entity_type_id);
+      }
+      if ($layoutEntitiesViews) {
+        foreach ($layoutEntitiesViews as $bundle_id => $layoutEntities) {
+          foreach ($layoutEntities as $layout_builder) {
+            $key = $storage->getEntityType()->getKey('bundle');
+            $query = $storage->getQuery();
+            if ($key)
+              $query->condition($key, $bundle_id);
+            $ids = $query->accessCheck(TRUE)->execute();
+            if ($ids)
+              if ($layout_builder['allow_custom']) {
+                $entities = $this->entityTypeManager->getStorage($entity_type_id)->loadMultiple($ids);
+                if ($entities) {
+                  // on ajoute les styles par defaut.
+                  $this->getOverrideScss($layout_builder['sections']);
+                  // On ajoute les styles par defaut.
+                  foreach ($entities as $entity) {
+                    $sections = [];
+                    $listSetions = $entity->get('layout_builder__layout')->getValue();
+                    // $section_storage = $entity->getEntityTypeId() . '.' .
+                    // $entity->bundle() . '.' . $entity->id();
+                    foreach ($listSetions as $value) {
+                      $sections[] = reset($value);
+                    }
+                    $this->getOverrideScss($sections);
+                  }
+                }
+              }
+              else {
+                // on ajoute les styles par defaut.
+                $this->getOverrideScss($layout_builder['sections']);
+              }
+          }
+        }
+      }
+    }
+  }
+  
+  /**
+   * Lors de la generation d'un site, les styles ajoute au paragraph ne sont pas
+   * creer afin que ce processus soit rapide.
+   * Cette fonction permet d'ajouter ces styles dans la table "files_style".
+   */
+  protected function getOverrideScss(array $sections) {
+    foreach ($sections as $section) {
+      /**
+       *
+       * @var \Drupal\layout_builder\Section $section
+       */
+      $storage = $section->getLayoutSettings();
+      $this->loadPluginScss()->addConfigs($storage);
+    }
+  }
+  
+  /**
+   * Specifique à wb-horizon.
+   *
+   * @return \Drupal\layout_custom_style\StyleScssPluginManager
+   */
+  protected function loadPluginScss() {
+    if (!$this->StyleScssPlugin) {
+      $this->StyleScssPlugin = \Drupal::service('plugin.manager.style_scss');
+    }
+    return $this->StyleScssPlugin;
+  }
+  
+  /**
+   * Recupere les modes d'affichages.
+   *
+   * @param array $overridesEntitiesViews
+   * @param string $entity_type_id
+   * @param string $bundle_id
+   */
+  protected function getEntitiesModeDisplay(array &$overridesEntitiesViews, $entity_type_id, $bundle_id) {
+    /**
+     * Les modes d'affichages.
+     *
+     * @var array $entitiesViews
+     */
+    $entitiesViews = $this->entityTypeManager()->getStorage('entity_view_display')->loadByProperties([
+      'targetEntityType' => $entity_type_id,
+      'bundle' => $bundle_id
+    ]);
+    foreach ($entitiesViews as $entityView) {
+      /**
+       *
+       * @var \Drupal\layout_builder\Entity\LayoutBuilderEntityViewDisplay
+       */
+      if ($entityView instanceof \Drupal\layout_builder\Entity\LayoutBuilderEntityViewDisplay) {
+        $layout_builder = $this->getSectionsForEntityView($entityView);
+        if (!empty($layout_builder['enabled']) && $layout_builder['sections']) {
+          $overridesEntitiesViews[$bundle_id][$entityView->getMode()] = $layout_builder;
+        }
+      }
+    }
   }
   
   /**

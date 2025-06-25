@@ -48,6 +48,11 @@ class LayoutgenentitystylesController extends ControllerBase {
     return new static($container->get('layoutgenentitystyles.add.style.theme'));
   }
   
+  public function ManuelGenerateAll() {
+    $this->LayoutgenentitystylesServices->getComponentsOverrides();
+    return $this->ManuelGenerate();
+  }
+  
   /**
    *
    * @return string[]
@@ -156,5 +161,4 @@ class LayoutgenentitystylesController extends ControllerBase {
     $reponse->setContent($configs);
     return $reponse;
   }
-  
 }
