@@ -217,6 +217,7 @@ class LayoutgenentitystylesServices extends ControllerBase {
     $this->sectionStoragesByLayout = $this->getListSectionStorages();
     foreach ($this->sectionStoragesByLayout as $entityView) {
       $this->generateSTyleFromEntity($entityView, false);
+      $this->getUxStyleFromEntity($entityView);
       $this->generateStyleFromFieldConfigDisplay($entityView, false);
       $layout_builder = $this->getSectionsForEntityView($entityView);
       // Si l'entité d'affichage accepte la surcharge et que nous sommes sur le
@@ -601,6 +602,20 @@ class LayoutgenentitystylesServices extends ControllerBase {
       $this->libraries[$entityView->id()] = $this->getLibraryForEachSections($sections);
       if ($themeBuild)
         $this->addStylesToConfigTheme();
+    }
+  }
+  
+  /**
+   * Permet de recuperer les styles ajoutés par l'utilisateur et de les ajoutes
+   * en BD.
+   *
+   * @param LayoutBuilderEntityViewDisplay $entityView
+   */
+  public function getUxStyleFromEntity(LayoutBuilderEntityViewDisplay $entityView) {
+    $layout_builder = $this->getSectionsForEntityView($entityView);
+    $sections = $layout_builder['sections'] ?? [];
+    if ($sections) {
+      $this->getOverrideScss($sections);
     }
   }
   
