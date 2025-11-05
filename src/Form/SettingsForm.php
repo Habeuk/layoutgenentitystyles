@@ -159,12 +159,23 @@ class SettingsForm extends ConfigFormBase {
       if (!empty($value['library']) && !empty($value['id']))
         $list_style[$key] = $value;
     }
+    $entity_auto_generate = [];
+    foreach ($form_state->getValue('entity_auto_generate') as $key => $value) {
+      if (!empty($value))
+        $entity_auto_generate[$key] = $value;
+    }
+    //
+    $entities_pages = [];
+    foreach ($form_state->getValue('entities_pages') as $key => $value) {
+      if (!empty($value))
+        $entities_pages[$key] = $value;
+    }
     $config->set('list_style', $list_style);
-    $config->set('entity_auto_generate', $form_state->getValue('entity_auto_generate'));
+    $config->set('entity_auto_generate', $entity_auto_generate);
     $config->set('enabled_auto_generate_config', $form_state->getValue('enabled_auto_generate_config'));
     $config->set('enabled_auto_generate_entity', $form_state->getValue('enabled_auto_generate_entity'));
     $config->set('enabled_auto_generate_fieldconfig', $form_state->getValue('enabled_auto_generate_fieldconfig'));
-    $config->set('entities_pages', $form_state->getValue('entities_pages'));
+    $config->set('entities_pages', $entities_pages);
     $config->save();
     parent::submitForm($form, $form_state);
   }

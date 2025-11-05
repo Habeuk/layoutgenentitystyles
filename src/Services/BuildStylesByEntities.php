@@ -2,25 +2,111 @@
 
 namespace Drupal\layoutgenentitystyles\Services;
 
-use Drupal\Core\Controller\ControllerBase;
-use Symfony\Component\DependencyInjection\ContainerInterface;
-use Drupal\layout_builder\SectionStorage\SectionStorageManager;
+use Stephane888\Debug\Repositories\ConfigDrupal;
 use Drupal\layout_builder\Entity\LayoutBuilderEntityViewDisplay;
-use Drupal\Core\Plugin\Context\EntityContext;
-use Drupal\Core\Layout\LayoutInterface;
-use Drupal\Core\Plugin\PluginWithFormsInterface;
-use Drupal\Core\Plugin\PluginFormInterface;
-use Drupal\Core\Entity\EntityTypeInterface;
-use Drupal\Core\Config\ConfigFactory;
 use Drupal\generate_style_theme\Entity\ConfigThemeEntity;
 use Drupal\generate_style_theme\Services\GenerateStyleTheme;
-use Drupal\generate_style_theme\Services\ManageFileCustomStyle;
-use Drupal\generate_style_theme\Services\ManageFileMailStyle;
-use Drupal\Component\Utility\Timer;
-use Drupal\Core\Entity\EntityInterface;
-use Drupal\layout_builder\Section;
 
 class BuildStylesByEntities extends BuilderStylesBase {
+  
+  /**
+   * Permet de parcourir les entites qui peuvent avoir les styles.
+   */
+  protected function entitiesRoutes() {
+    $configs = ConfigDrupal::config('layoutgenentitystyles.settings');
+    if (!empty($configs['entities_pages'])) {
+      foreach (array_keys($configs['entities_pages']) as $entity_type_id) {
+        $typeEntities = $this->entityTypeManager()->getStorage($entity_type_id)->loadMultiple();
+        foreach ($typeEntities as $bundle => $entityType) {
+          /**
+           * Les styles pour le bundle ou l'entite
+           *
+           * @var array $styles
+           */
+          $styles = [];
+          /**
+           *
+           * @var \Drupal\blockscontent\Entity\BlocksContentsType $entityType
+           */
+          if ($entityType instanceof \Drupal\Core\Config\Entity\ConfigEntityBundleBase) {
+            $filename = $entityType->getEntityType()->getBundleOf() . '__' . $bundle;
+            $sectionStoragesViews = $this->loadEntityViewDisplay($bundle, $entityType->getEntityType()->getBundleOf());
+            foreach ($sectionStoragesViews as $sectionStoragesView) {
+              $this->generateSTyleFromEntity($sectionStoragesView, $styles);
+            }
+          }
+          if ($styles && $filename) {
+            $this->generateFilesStyles($styles, $filename);
+          }
+        }
+      }
+    }
+    else {
+      $this->messenger()->addWarning('Vous devez specifier les entities qui peuvent porter les styles');
+    }
+  }
+  
+  /**
+   * Genere les styles pour le mode d'affichage.
+   *
+   * @param LayoutBuilderEntityViewDisplay $entity
+   */
+  function generateSTyleFromEntity(LayoutBuilderEntityViewDisplay $entityView, array &$styles) {
+    $layout_builder = $this->getSectionsForEntityView($entityView);
+    $sections = $layout_builder['sections'] ?? [];
+    if ($sections) {
+      $styles[$entityView->id()] = $this->getLibraryForEachSections($sections);
+    }
+  }
+  
+  protected function loadEntityViewDisplay($bundle, $entity_type_id) {
+    $sectionStoragesViews = $this->entityTypeManager()->getStorage('entity_view_display')->loadByProperties([
+      'bundle' => $bundle,
+      'targetEntityType' => $entity_type_id
+    ]);
+    return $sectionStoragesViews;
+  }
+  
+  /**
+   * Genrere directement les fichiers scss et js.
+   */
+  protected function generateFilesStyles(array $styles, string $filename) {
+    $defaultThemeName = $this->getDefaultTheme();
+    if (!empty($defaultThemeName)) {
+      $arrayStyles = $this->getArrayScssJs($styles);
+      $ids = $this->entityTypeManager()->getStorage('config_theme_entity')->getQuery()->condition('hostname', $defaultThemeName)->accessCheck(false)->execute();
+      if (!empty($ids)) {
+        $entity = ConfigThemeEntity::load(reset($ids));
+        $GenerateStyleTheme = new GenerateStyleTheme($entity);
+        $GenerateStyleTheme->buildCustomScssFromArray($arrayStyles['scss'], $filename);
+        $GenerateStyleTheme->buildCustomJsFromArray($arrayStyles['js'], $filename);
+      }
+    }
+    if ($this->shoMessage)
+      $this->messenger()->addStatus(" Vous devez regenerer votre theme ");
+  }
+  
+  /**
+   *
+   * @param array $styles
+   */
+  protected function getArrayScssJs(array $styles) {
+    $scss = [];
+    $js = [];
+    foreach ($styles as $key => $style) {
+      [
+        $entity_id,
+        $bundle,
+        $mode
+      ] = explode(".", $key);
+      $scss[$entity_id][$bundle][$mode] = $style['scss'];
+      $js[$entity_id][$bundle][$mode] = $style['js'];
+    }
+    return [
+      'scss' => $scss,
+      'js' => $js
+    ];
+  }
   
   /**
    * Permet de generer tous les styles et de les ajouter dans la configuration
@@ -30,20 +116,7 @@ class BuildStylesByEntities extends BuilderStylesBase {
     $ModuleConf = $this->getConfigFOR_generate_style_theme();
     // On construit les styles en fonction des entités.
     if (!empty($ModuleConf['tab1']) && $ModuleConf['tab1']['save_multifile'] == 1) {
-      // $this->test();
-    }
-  }
-  
-  function test() {
-    // Get the current base field definitions.
-    $base_fields = \Drupal::service('entity_field.manager')->getBaseFieldDefinitions('files_style');
-    if (!isset($base_fields['route_name'])) {
-      $field_name = 'route_name';
-      $entity_type_id = 'files_style';
-      $storageDef = \Drupal\Core\Field\BaseFieldDefinition::create('string')->setLabel(t('Route name'))->setDescription(t('Optional: the full or partial name of a route this style applies to.'))->setRevisionable(TRUE)->setRequired(FALSE)->setSetting('max_length', 255)->setDefaultValue(NULL);
-      $updateManager = \Drupal::entityDefinitionUpdateManager();
-      $updateManager->installFieldStorageDefinition($field_name, $entity_type_id, "generate_style_theme", $storageDef);
-      return t('The "route_name" field has been added to the files_style entity.');
+      $this->entitiesRoutes();
     }
   }
   
