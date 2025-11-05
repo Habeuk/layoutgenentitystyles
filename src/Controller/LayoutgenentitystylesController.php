@@ -11,6 +11,7 @@ use Drupal\Core\Layout\LayoutInterface;
 use Drupal\Core\Plugin\PluginWithFormsInterface;
 use Drupal\Core\Plugin\PluginFormInterface;
 use Drupal\layoutgenentitystyles\Services\LayoutgenentitystylesServices;
+use Drupal\layoutgenentitystyles\Services\BuildStylesByEntities;
 use Drupal\Component\Serialization\Json;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
@@ -35,9 +36,11 @@ class LayoutgenentitystylesController extends ControllerBase {
   /**
    */
   protected $LayoutgenentitystylesServices;
+  protected $buildStylesByEntities;
   
-  function __construct(LayoutgenentitystylesServices $LayoutgenentitystylesServices) {
+  function __construct(LayoutgenentitystylesServices $LayoutgenentitystylesServices, BuildStylesByEntities $buildStylesByEntities) {
     $this->LayoutgenentitystylesServices = $LayoutgenentitystylesServices;
+    $this->buildStylesByEntities = $buildStylesByEntities;
   }
   
   /**
@@ -45,12 +48,32 @@ class LayoutgenentitystylesController extends ControllerBase {
    * {@inheritdoc}
    */
   public static function create(ContainerInterface $container) {
-    return new static($container->get('layoutgenentitystyles.add.style.theme'));
+    return new static($container->get('layoutgenentitystyles.add.style.theme'), $container->get('layoutgenentitystyles.add.styles.by.entities'));
   }
   
   public function ManuelGenerateAll() {
     $this->LayoutgenentitystylesServices->getComponentsOverrides();
     return $this->ManuelGenerate();
+  }
+  
+  public function ManuelGenerateByEntities() {
+    $items = [];
+    $this->buildStylesByEntities->generateAllFilesStyles();
+    $lists = [
+      '#type' => 'html_tag',
+      '#tag' => 'ol',
+      '#attributes' => [
+        'style' => ''
+      ],
+      $items
+    ];
+    $build['content'] = [
+      '#type' => 'item',
+      '#markup' => "Les styles ont été MAJ.",
+      $lists
+    ];
+    //
+    return $build;
   }
   
   /**
@@ -161,4 +184,5 @@ class LayoutgenentitystylesController extends ControllerBase {
     $reponse->setContent($configs);
     return $reponse;
   }
+  
 }

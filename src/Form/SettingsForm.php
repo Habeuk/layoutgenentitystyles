@@ -62,7 +62,7 @@ class SettingsForm extends ConfigFormBase {
       '#tree' => true
     ];
     
-    $entities = \Drupal::entityTypeManager()->getDefinitions();
+    $entities = $this->loadEntitiesDefinition(true);
     foreach ($entities as $entity) {
       $form['entity_auto_generate'][$entity->id()] = [
         '#type' => 'checkbox',
@@ -113,7 +113,38 @@ class SettingsForm extends ConfigFormBase {
       }
     }
     //
+    $form['entities_pages'] = [
+      '#type' => 'details',
+      '#title' => "Contient les entites qui peuvent s'afficher",
+      '#open' => false,
+      '#tree' => true,
+      '#description' => "Cela entraine la creation des styles par types d'entites ou par entites (cas des affichages surchagé)"
+    ];
+    $entities = $this->loadEntitiesDefinition(false);
+    foreach ($entities as $entity) {
+      $form['entities_pages'][$entity->id()] = [
+        '#type' => 'checkbox',
+        '#title' => $entity->getLabel() . " [" . $entity->id() . "]",
+        '#default_value' => $config['entities_pages'][$entity->id()] ?? 0
+      ];
+    }
     return parent::buildForm($form, $form_state);
+  }
+  
+  private function loadEntitiesDefinition($content_entities = true) {
+    $entities = [];
+    $definitions = \Drupal::entityTypeManager()->getDefinitions();
+    foreach ($definitions as $key => $definition) {
+      if ($content_entities) {
+        if ($definition instanceof \Drupal\Core\Entity\ContentEntityType)
+          $entities[$key] = $definition;
+      }
+      else {
+        if ($definition instanceof \Drupal\Core\Config\Entity\ConfigEntityType)
+          $entities[$key] = $definition;
+      }
+    }
+    return $entities;
   }
   
   /**
@@ -133,7 +164,9 @@ class SettingsForm extends ConfigFormBase {
     $config->set('enabled_auto_generate_config', $form_state->getValue('enabled_auto_generate_config'));
     $config->set('enabled_auto_generate_entity', $form_state->getValue('enabled_auto_generate_entity'));
     $config->set('enabled_auto_generate_fieldconfig', $form_state->getValue('enabled_auto_generate_fieldconfig'));
+    $config->set('entities_pages', $form_state->getValue('entities_pages'));
     $config->save();
     parent::submitForm($form, $form_state);
   }
+  
 }

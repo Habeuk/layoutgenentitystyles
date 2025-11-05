@@ -8,3 +8,7 @@ entity_auto_generate:
   blocks_contents: 1
   commerce_product: 1
   node: 1
+entities_pages:
+  blocks_contents: 1
+  commerce_product: 1
+  node: 1

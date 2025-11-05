@@ -19,9 +19,8 @@ use Drupal\generate_style_theme\Services\ManageFileMailStyle;
 use Drupal\Component\Utility\Timer;
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\layout_builder\Section;
-use Google\Service\NetworkManagement\Trace;
 
-class LayoutgenentitystylesServices extends ControllerBase {
+class LayoutgenentitystylesServices extends BuilderStylesBase {
   /**
    * Contient la liste des plugins d'affichage.
    *
@@ -30,96 +29,11 @@ class LayoutgenentitystylesServices extends ControllerBase {
   protected $sectionStorages = null;
   
   /**
-   * The section storage manager.
-   *
-   * @var SectionStorageManager
-   */
-  protected $sectionStorageManager;
-  
-  /**
-   */
-  protected $LoadStyleFromMod;
-  
-  /**
-   *
-   * @var array
-   */
-  protected $sections = [];
-  
-  /**
-   */
-  protected $libraries = [];
-  /**
-   */
-  protected $ConfigFactory;
-  
-  /**
    * Contient les definitions d'entites qui permettront de generer les styles.
    *
    * @var array
    */
   protected $sectionStoragesByLayout = [];
-  
-  /**
-   * permet de determiner si l'utilisateur a le role administrator;
-   *
-   * @var boolean
-   */
-  private $isAdmin = false;
-  
-  /**
-   * Show message to regenerate theme.
-   */
-  protected bool $shoMessage = true;
-  
-  /**
-   *
-   * @var array
-   */
-  protected $conf = null;
-  
-  /**
-   *
-   * @var ManageFileCustomStyle
-   */
-  protected $ManageFileCustomStyle;
-  
-  /**
-   *
-   * @var ManageFileMailStyle
-   */
-  protected $ManageFileMailStyle;
-  
-  /**
-   *
-   * @var \Drupal\layout_custom_style\StyleScssPluginManager
-   */
-  protected $StyleScssPlugin;
-  
-  //
-  // private $container;
-  function __construct(SectionStorageManager $SectionStorageManager, LoadStyleFromMod $LoadStyleFromMod, ConfigFactory $ConfigFactory, ManageFileCustomStyle $ManageFileCustomStyle, ManageFileMailStyle $ManageFileMailStyle) {
-    $this->sectionStorageManager = $SectionStorageManager;
-    $this->LoadStyleFromMod = $LoadStyleFromMod;
-    $this->ConfigFactory = $ConfigFactory;
-    $this->ManageFileCustomStyle = $ManageFileCustomStyle;
-    $this->ManageFileMailStyle = $ManageFileMailStyle;
-    // $this->container = \Drupal::getContainer();
-    $this->checkIfUserIsAdministrator();
-  }
-  
-  private function checkIfUserIsAdministrator() {
-    if (in_array('administrator', $this->currentUser()->getRoles())) {
-      $this->isAdmin = true;
-    }
-  }
-  
-  public function getConfigFOR_generate_style_theme() {
-    if (!$this->conf) {
-      $this->conf = $this->ConfigFactory->get('generate_style_theme.settings')->getRawData();
-    }
-    return $this->conf;
-  }
   
   /**
    * On recupere la liste des plugins d'affichage d'entite validé en funcion de
@@ -144,14 +58,13 @@ class LayoutgenentitystylesServices extends ControllerBase {
       });
       if ($entity_auto_generate) {
         $entity_auto_generate = array_keys($entity_auto_generate);
-        $this->sectionStorages = array_filter($DefaultsSectionStorages,
-          function ($key) use ($entity_auto_generate) {
-            foreach ($entity_auto_generate as $valid_entity_type_id) {
-              if (str_contains($key, $valid_entity_type_id . '.'))
-                return true;
-            }
-            return false;
-          }, ARRAY_FILTER_USE_KEY);
+        $this->sectionStorages = array_filter($DefaultsSectionStorages, function ($key) use ($entity_auto_generate) {
+          foreach ($entity_auto_generate as $valid_entity_type_id) {
+            if (str_contains($key, $valid_entity_type_id . '.'))
+              return true;
+          }
+          return false;
+        }, ARRAY_FILTER_USE_KEY);
         // On recupere les paragraphes attaché à un layout.
         // ( Dans cette approche, on considere que tous les layouts sont
         // associés à des paragraphes ).
@@ -213,46 +126,52 @@ class LayoutgenentitystylesServices extends ControllerBase {
    * du theme actif.
    */
   function generateAllFilesStyles() {
-    $this->loadAllViews();
-    $this->sectionStoragesByLayout = $this->getListSectionStorages();
-    foreach ($this->sectionStoragesByLayout as $entityView) {
-      $this->generateSTyleFromEntity($entityView, false);
-      $this->getUxStyleFromEntity($entityView);
-      $this->generateStyleFromFieldConfigDisplay($entityView, false);
-      $layout_builder = $this->getSectionsForEntityView($entityView);
-      // Si l'entité d'affichage accepte la surcharge et que nous sommes sur le
-      // rendu par defaut.
-      if (!empty($layout_builder['allow_custom']) && $entityView->getMode() == 'default') {
-        $bundle = $entityView->getTargetBundle();
-        $EntityTypeId = $entityView->getTargetEntityTypeId();
-        /**
-         *
-         * @var \Drupal\Core\Entity\EntityStorageInterface $entitiesContentsStorage
-         */
-        $entitiesContentsStorage = $this->entityTypeManager()->getStorage($entityView->getTargetEntityTypeId());
-        $key = $entitiesContentsStorage->getEntityType()->getKey('bundle');
-        $BundleEntityType = $entitiesContentsStorage->getEntityType()->getBundleEntityType();
-        if ($BundleEntityType && $key) {
-          $entities = $this->entityTypeManager()->getStorage($EntityTypeId)->loadByProperties([
-            $key => $bundle,
-            'status' => 1
-          ]);
-        }
-        else
-          $entities = $this->entityTypeManager()->getStorage($EntityTypeId)->loadByProperties();
-        /**
-         * Concernant $entities il contient les contenus publiés et ceux non
-         * publiées.
-         * Pour la suite il faudra regrouper les styles par types d'entites et
-         * par entites de base surcharger.
-         * Exemple: si on a un type node.page.
-         * - On aurra un fichier generer à partir de node.page
-         * - Si le contenu qu'on visite est surchargé (layout_builder__layout),
-         * on va egalement charger les styles surcharge ( pour ce contenu ).
-         */
-        if ($entities) {
-          foreach ($entities as $entity) {
-            $this->getAllStylesFromOverrideEntity($entity);
+    $ModuleConf = $this->getConfigFOR_generate_style_theme();
+    // On construit les styles de maniere generale.
+    if (!empty($ModuleConf['tab1']) && $ModuleConf['tab1']['save_multifile'] !== 1) {
+      $this->loadAllViews();
+      $this->sectionStoragesByLayout = $this->getListSectionStorages();
+      foreach ($this->sectionStoragesByLayout as $entityView) {
+        $this->generateSTyleFromEntity($entityView, false);
+        $this->getUxStyleFromEntity($entityView);
+        $this->generateStyleFromFieldConfigDisplay($entityView, false);
+        $layout_builder = $this->getSectionsForEntityView($entityView);
+        // Si l'entité d'affichage accepte la surcharge et que nous sommes sur
+        // le
+        // rendu par defaut.
+        if (!empty($layout_builder['allow_custom']) && $entityView->getMode() == 'default') {
+          $bundle = $entityView->getTargetBundle();
+          $EntityTypeId = $entityView->getTargetEntityTypeId();
+          /**
+           *
+           * @var \Drupal\Core\Entity\EntityStorageInterface $entitiesContentsStorage
+           */
+          $entitiesContentsStorage = $this->entityTypeManager()->getStorage($entityView->getTargetEntityTypeId());
+          $key = $entitiesContentsStorage->getEntityType()->getKey('bundle');
+          $BundleEntityType = $entitiesContentsStorage->getEntityType()->getBundleEntityType();
+          if ($BundleEntityType && $key) {
+            $entities = $this->entityTypeManager()->getStorage($EntityTypeId)->loadByProperties([
+              $key => $bundle,
+              'status' => 1
+            ]);
+          }
+          else
+            $entities = $this->entityTypeManager()->getStorage($EntityTypeId)->loadByProperties();
+          /**
+           * Concernant $entities il contient les contenus publiés et ceux non
+           * publiées.
+           * Pour la suite il faudra regrouper les styles par types d'entites et
+           * par entites de base surcharger.
+           * Exemple: si on a un type node.page.
+           * - On aurra un fichier generer à partir de node.page
+           * - Si le contenu qu'on visite est surchargé
+           * (layout_builder__layout),
+           * on va egalement charger les styles surcharge ( pour ce contenu ).
+           */
+          if ($entities) {
+            foreach ($entities as $entity) {
+              $this->getAllStylesFromOverrideEntity($entity);
+            }
           }
         }
       }
@@ -271,7 +190,7 @@ class LayoutgenentitystylesServices extends ControllerBase {
     $this->addStylesToConfigTheme(true);
     
     // On regenere le fichier custom.
-    $this->ManageFileCustomStyle->generateCustomFile();
+    $this->ManageFileCustomStyle->generateCustomFile(true);
     // On regenere le fichier custom d'email.
     $this->ManageFileMailStyle->generateCustomFile();
   }
@@ -318,7 +237,7 @@ class LayoutgenentitystylesServices extends ControllerBase {
             $ids = $query->accessCheck(TRUE)->execute();
             if ($ids)
               if ($layout_builder['allow_custom']) {
-                $entities = $this->entityTypeManager->getStorage($entity_type_id)->loadMultiple($ids);
+                $entities = $this->entityTypeManager()->getStorage($entity_type_id)->loadMultiple($ids);
                 if ($entities) {
                   // on ajoute les styles par defaut.
                   $this->getOverrideScss($layout_builder['sections']);
@@ -753,6 +672,7 @@ class LayoutgenentitystylesServices extends ControllerBase {
     $defaultThemeName = $this->getDefaultTheme();
     $ModuleConf = $this->getConfigFOR_generate_style_theme();
     $conf = \Drupal\generate_style_theme\GenerateStyleTheme::getDynamicConfig($defaultThemeName, $ModuleConf);
+    
     $config = $this->ConfigFactory->getEditable($conf['settings']);
     // Clean datas.
     if ($clean) {
@@ -812,14 +732,14 @@ class LayoutgenentitystylesServices extends ControllerBase {
            *
            * @var EntityTypeInterface $entity
            */
-          if ($this->entityTypeManager->hasDefinition($entity_type_id))
+          if ($this->entityTypeManager()->hasDefinition($entity_type_id))
             $entity = \Drupal::service('entity.repository')->loadEntityByUuid($entity_type_id, $uuid_entity);
         }
         // Si on utilise le module entity_block.
         elseif (!empty($settings['entity'])) {
           $entity_type_id = explode(':', $block->get('plugin'))[1] ?? null;
-          if ($entity_type_id && $this->entityTypeManager->hasDefinition($entity_type_id)) {
-            $entity = $this->entityTypeManager->getStorage($entity_type_id)->load($settings['entity']);
+          if ($entity_type_id && $this->entityTypeManager()->hasDefinition($entity_type_id)) {
+            $entity = $this->entityTypeManager()->getStorage($entity_type_id)->load($settings['entity']);
           }
         }
         if ($entity_type_id && $entity) {
@@ -987,5 +907,6 @@ class LayoutgenentitystylesServices extends ControllerBase {
     
     throw new \InvalidArgumentException(sprintf('The "%s" layout does not provide a configuration form', $layout->getPluginId()));
   }
+  
 }
 
