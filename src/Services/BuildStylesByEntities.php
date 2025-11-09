@@ -36,10 +36,11 @@ class BuildStylesByEntities extends BuilderStylesBase {
             }
           }
           if ($styles && $filename) {
-            $this->generateFilesStyles($styles, $filename);
+            $this->libraries[$filename] = $styles;
           }
         }
       }
+      $this->generateFilesStyles();
     }
     else {
       $this->messenger()->addWarning('Vous devez specifier les entities qui peuvent porter les styles');
@@ -70,16 +71,21 @@ class BuildStylesByEntities extends BuilderStylesBase {
   /**
    * Genrere directement les fichiers scss et js.
    */
-  protected function generateFilesStyles(array $styles, string $filename) {
+  protected function generateFilesStyles() {
     $defaultThemeName = $this->getDefaultTheme();
     if (!empty($defaultThemeName)) {
-      $arrayStyles = $this->getArrayScssJs($styles);
       $ids = $this->entityTypeManager()->getStorage('config_theme_entity')->getQuery()->condition('hostname', $defaultThemeName)->accessCheck(false)->execute();
       if (!empty($ids)) {
+        $auto_generate_entries = [];
         $entity = ConfigThemeEntity::load(reset($ids));
         $GenerateStyleTheme = new GenerateStyleTheme($entity);
-        $GenerateStyleTheme->buildCustomScssFromArray($arrayStyles['scss'], $filename);
-        $GenerateStyleTheme->buildCustomJsFromArray($arrayStyles['js'], $filename);
+        foreach ($this->getLibraries() as $filename => $styles) {
+          $arrayStyles = $this->getArrayScssJs($styles);
+          $GenerateStyleTheme->buildCustomScssFromArray($arrayStyles['scss'], $filename);
+          $GenerateStyleTheme->buildCustomJsFromArray($arrayStyles['js'], $filename);
+          $auto_generate_entries[$filename] = './src/js/' . $filename . '.js';
+        }
+        $GenerateStyleTheme->autoGenerateEntries($auto_generate_entries);
       }
     }
     if ($this->shoMessage)
