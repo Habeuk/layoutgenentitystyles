@@ -314,4 +314,80 @@ class BuilderStylesBase extends ControllerBase {
     throw new \InvalidArgumentException(sprintf('The "%s" layout does not provide a configuration form', $layout->getPluginId()));
   }
   
+  protected function getCurrentblock() {
+    $defaultThemeName = $this->getDefaultTheme();
+    return \Drupal::entityTypeManager()->getStorage('block')->loadByProperties([
+      'theme' => $defaultThemeName,
+      'status' => 1
+    ]);
+  }
+  
+  /**
+   * Ajoute les styles dans la configuration du theme.
+   */
+  protected function addStylesToConfigTheme(bool $clean = false, array $customStyles = [], bool $saveInTheme = false) {
+    $defaultThemeName = $this->getDefaultTheme();
+    $ModuleConf = $this->getConfigFOR_generate_style_theme();
+    // MAJ des fichiers scss et js du theme.
+    if (!empty($defaultThemeName)) {
+      $conf = \Drupal\generate_style_theme\GenerateStyleTheme::getDynamicConfig($defaultThemeName, $ModuleConf);
+      $config = $this->ConfigFactory->getEditable($conf['settings']);
+      /**
+       * La sauvegarde dans le theme, n'est pas une bonne idée, cela augmente
+       * les données de configs qui sont chargées en memoire ou en cache.
+       * // on supprime et on vide le theme. *
+       */
+      if ($saveInTheme) {
+        if ($clean) {
+          $config->set('layoutgenentitystyles.scss', []);
+          $config->set('layoutgenentitystyles.js', []);
+          $config->save();
+        }
+        foreach ($this->libraries as $section_storage => $libraries) {
+          $config->set('layoutgenentitystyles.scss.' . $section_storage, $libraries['scss']);
+          $config->set('layoutgenentitystyles.js.' . $section_storage, $libraries['js']);
+        }
+        $config->save();
+      }
+      else {
+        $config->clear('layoutgenentitystyles');
+        $config->save();
+      }
+      //
+      $ids = $this->entityTypeManager()->getStorage('config_theme_entity')->getQuery()->condition('hostname', $defaultThemeName)->accessCheck(false)->execute();
+      if (!empty($ids)) {
+        $entity = ConfigThemeEntity::load(reset($ids));
+        $GenerateStyleTheme = new GenerateStyleTheme($entity);
+        $librairiesStyles = $this->getArrayScssJs($this->libraries);
+        $customsStyles = $this->getArrayScssJs($customStyles);
+        $GenerateStyleTheme->scssFiles($librairiesStyles['scss'], $customsStyles['scss']);
+        $GenerateStyleTheme->jsFiles($librairiesStyles['js'], $customsStyles['js']);
+      }
+    }
+    if ($this->shoMessage)
+      $this->messenger()->addStatus(" Vous devez regenerer votre theme ");
+  }
+  
+  /**
+   *
+   * @param array $styles
+   */
+  protected function getArrayScssJs(array $styles) {
+    $scss = [];
+    $js = [];
+    foreach ($styles as $key => $style) {
+      [
+        $entity_id,
+        $bundle,
+        $mode
+      ] = explode(".", $key);
+      $scss[$entity_id][$bundle][$mode] = $style['scss'];
+      $js[$entity_id][$bundle][$mode] = $style['js'];
+    }
+    return [
+      'scss' => $scss,
+      'js' => $js
+    ];
+  }
+  
 }

@@ -205,7 +205,7 @@ class BuildStylesByEntities extends BuilderStylesBase {
    *        cv_entity.cv_entity.150( cette nomenclature vise à eviter les
    *        doublons).
    */
-  function generateStyleFromSection(array $sections, $section_storage_id, $buildThme = false) {
+  protected function generateStyleFromSection(array $sections, $section_storage_id, $buildThme = false) {
     if ($this->isAdmin && $this->shoMessage)
       \Drupal::messenger()->addStatus(" Les styles (scss/js) maj via une entité surchargée ");
     // Genere les definits au niveau des layouts.
@@ -354,36 +354,71 @@ class BuildStylesByEntities extends BuilderStylesBase {
   }
   
   /**
-   *
-   * @param array $styles
-   */
-  protected function getArrayScssJs(array $styles) {
-    $scss = [];
-    $js = [];
-    foreach ($styles as $key => $style) {
-      [
-        $entity_id,
-        $bundle,
-        $mode
-      ] = explode(".", $key);
-      $scss[$entity_id][$bundle][$mode] = $style['scss'];
-      $js[$entity_id][$bundle][$mode] = $style['js'];
-    }
-    return [
-      'scss' => $scss,
-      'js' => $js
-    ];
-  }
-  
-  /**
    * Permet de generer tous les styles et de les ajouter dans la configuration
    * du theme actif.
    */
-  function generateAllFilesStyles() {
+  public function generateAllFilesStyles() {
     $ModuleConf = $this->getConfigFOR_generate_style_theme();
     // On construit les styles en fonction des entités.
     if (!empty($ModuleConf['tab1']) && $ModuleConf['tab1']['save_multifile'] == 1) {
+      // 1 - Genere les fichiers de base.
+      $customStyles = [];
+      $this->loadStyleFromBlocs($customStyles);
+      $this->addStylesToConfigTheme(true, $customStyles);
+      // On regenere le fichier custom.
+      $this->ManageFileCustomStyle->generateCustomFile(true);
+      // On regenere le fichier custom d'email.
+      $this->ManageFileMailStyle->generateCustomFile();
+      // 2 - Genere les fichiers dynamique.
       $this->entitiesGenerateDefautlStyles();
+    }
+  }
+  
+  /**
+   * Certains entites sont ajouté au niveau des blocs cest generalement le cas
+   * du menus, footers et autres ...
+   */
+  protected function loadStyleFromBlocs(array &$customStyles = []) {
+    $blocks = $this->getCurrentblock();
+    foreach ($blocks as $block) {
+      /**
+       *
+       * @var \Drupal\block\Entity\Block $block
+       */
+      $settings = $block->get('settings');
+      // Generalement pour les block_content.
+      if (!empty($settings['id'])) {
+        $entity_type_id = null;
+        $entity = null;
+        if (str_contains($settings['id'], ":")) {
+          [
+            $entity_type_id,
+            $uuid_entity
+          ] = explode(":", $settings['id']);
+          if ($this->entityTypeManager()->hasDefinition($entity_type_id))
+            $entity = \Drupal::service('entity.repository')->loadEntityByUuid($entity_type_id, $uuid_entity);
+        }
+        // Si on utilise le module entity_block.
+        elseif (!empty($settings['entity'])) {
+          $entity_type_id = explode(':', $block->get('plugin'))[1] ?? null;
+          if ($entity_type_id && $this->entityTypeManager()->hasDefinition($entity_type_id)) {
+            $entity = $this->entityTypeManager()->getStorage($entity_type_id)->load($settings['entity']);
+          }
+        }
+        if ($entity_type_id && $entity) {
+          
+          // 1/3 => Si l'entité est surchargé.
+          $this->getAllStylesFromOverrideEntity($entity, $customStyles);
+          // 2/3 => Si l'entité n'est pas surchargé.
+          $EntityTypeId = $entity->getEntityTypeId();
+          $Bundle = $entity->bundle() ? $entity->bundle() : $EntityTypeId;
+          $DefaultStyle = [];
+          $this->generateStyleFromDefautlEntity($Bundle, $EntityTypeId, $DefaultStyle, $customStyles);
+          $this->libraries += $DefaultStyle;
+          // 3/3 les styles incluent dans les references.
+          $this->getStyleFromReferences($entity, $customStyles);
+        }
+      }
     }
   }
   

@@ -20,6 +20,12 @@ use Drupal\Component\Utility\Timer;
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\layout_builder\Section;
 
+/**
+ *
+ * @author stephane
+ * @deprecated car approche pas du tout efficace au niveau des perfoemances (
+ *             google page speed ).
+ */
 class LayoutgenentitystylesServices extends BuilderStylesBase {
   /**
    * Contient la liste des plugins d'affichage.
@@ -175,24 +181,25 @@ class LayoutgenentitystylesServices extends BuilderStylesBase {
           }
         }
       }
+      
+      $this->getCustomLibrary();
+      $this->loadStyleFromBlocs();
+      // La il ya un soucis, il faut determiner si elle detruit les styles,
+      // ajoutées par la configuration surcharger.
+      /**
+       * Effectivement, elles sont detruite les styles envoyés par l'autre
+       * mecanisme.
+       */
+      // On masque pour le moment.
+      // il faudra soit separer les sauvegarde au niveau du theme, et ajouté un
+      // moyen qui permet de mettre à jours les configirations surcharger.
+      $this->addStylesToConfigTheme(true);
+      
+      // On regenere le fichier custom.
+      $this->ManageFileCustomStyle->generateCustomFile(true);
+      // On regenere le fichier custom d'email.
+      $this->ManageFileMailStyle->generateCustomFile();
     }
-    $this->getCustomLibrary();
-    $this->loadStyleFromBlocs();
-    // La il ya un soucis, il faut determiner si elle detruit les styles,
-    // ajoutées par la configuration surcharger.
-    /**
-     * Effectivement, elles sont detruite les styles envoyés par l'autre
-     * mecanisme.
-     */
-    // On masque pour le moment.
-    // il faudra soit separer les sauvegarde au niveau du theme, et ajouté un
-    // moyen qui permet de mettre à jours les configirations surcharger.
-    $this->addStylesToConfigTheme(true);
-    
-    // On regenere le fichier custom.
-    $this->ManageFileCustomStyle->generateCustomFile(true);
-    // On regenere le fichier custom d'email.
-    $this->ManageFileMailStyle->generateCustomFile();
   }
   
   /**
@@ -471,45 +478,6 @@ class LayoutgenentitystylesServices extends BuilderStylesBase {
   }
   
   /**
-   * --
-   */
-  function getCustomLibrary() {
-    $config = $this->ConfigFactory->getEditable('layoutgenentitystyles.settings');
-    $list = $config->get('list_style');
-    if ($list) {
-      $sectionStoragesByLayoutKeys = array_keys($this->sectionStoragesByLayout);
-      foreach ($list as $value) {
-        /**
-         * Tous les styles ne doivent pas etre generer.
-         * Cas 1: pour les styles en relations avec une entite( generalement
-         * formatage de champs), il faut verifier si l'entite parente (par
-         * example : verifier si le paragraphe est present). est presente.
-         */
-        if (str_contains($value['id'], 'field_block:')) {
-          [
-            $base_key,
-            $entity_id,
-            $entity_type
-          ] = explode(":", $value['id']);
-          $search_key = "$entity_id.$entity_type";
-          $has_key = false;
-          foreach ($sectionStoragesByLayoutKeys as $key) {
-            if (str_contains($key, $search_key)) {
-              $has_key = true;
-              break;
-            }
-          }
-          if (!$has_key)
-            continue;
-        }
-        $subdir = isset($value['subdir']) ? $value['subdir'] : '';
-        $type = !empty($value['type']) ? $value['type'] : 'module';
-        $this->addStyleFromView($value['library'], $value['id'], $value['display_id'], $subdir, $type, false);
-      }
-    }
-  }
-  
-  /**
    * Genere les styles pour le mode d'affichage non surcharger.
    *
    * @param LayoutBuilderEntityViewDisplay $entity
@@ -640,43 +608,6 @@ class LayoutgenentitystylesServices extends BuilderStylesBase {
   }
   
   /**
-   * Ajoute les styles dans la configuration du theme.
-   */
-  protected function addStylesToConfigTheme($clean = false) {
-    $defaultThemeName = $this->getDefaultTheme();
-    $ModuleConf = $this->getConfigFOR_generate_style_theme();
-    $conf = \Drupal\generate_style_theme\GenerateStyleTheme::getDynamicConfig($defaultThemeName, $ModuleConf);
-    
-    $config = $this->ConfigFactory->getEditable($conf['settings']);
-    // Clean datas.
-    if ($clean) {
-      $config->set('layoutgenentitystyles.scss', []);
-      $config->set('layoutgenentitystyles.js', []);
-      $config->save();
-    }
-    //
-    foreach ($this->libraries as $section_storage => $libraries) {
-      $config->set('layoutgenentitystyles.scss.' . $section_storage, $libraries['scss']);
-      $config->set('layoutgenentitystyles.js.' . $section_storage, $libraries['js']);
-    }
-    $config->save();
-    
-    // MAJ des fichiers scss et js du theme.
-    if (!empty($defaultThemeName)) {
-      $ids = $this->entityTypeManager()->getStorage('config_theme_entity')->getQuery()->condition('hostname', $defaultThemeName)->accessCheck(false)->execute();
-      
-      if (!empty($ids)) {
-        $entity = ConfigThemeEntity::load(reset($ids));
-        $GenerateStyleTheme = new GenerateStyleTheme($entity);
-        $GenerateStyleTheme->scssFiles();
-        $GenerateStyleTheme->jsFiles();
-      }
-    }
-    if ($this->shoMessage)
-      $this->messenger()->addStatus(" Vous devez regenerer votre theme ");
-  }
-  
-  /**
    * Certains entites sont ajouté au niveau des blocs cest generalement le cas
    * des block_content.
    */
@@ -765,12 +696,43 @@ class LayoutgenentitystylesServices extends BuilderStylesBase {
     }
   }
   
-  public function getCurrentblock() {
-    $defaultThemeName = $this->getDefaultTheme();
-    return \Drupal::entityTypeManager()->getStorage('block')->loadByProperties([
-      'theme' => $defaultThemeName,
-      'status' => 1
-    ]);
+  /**
+   * --
+   */
+  function getCustomLibrary() {
+    $config = $this->ConfigFactory->getEditable('layoutgenentitystyles.settings');
+    $list = $config->get('list_style');
+    if ($list) {
+      $sectionStoragesByLayoutKeys = array_keys($this->sectionStoragesByLayout);
+      foreach ($list as $value) {
+        /**
+         * Tous les styles ne doivent pas etre generer.
+         * Cas 1: pour les styles en relations avec une entite( generalement
+         * formatage de champs), il faut verifier si l'entite parente (par
+         * example : verifier si le paragraphe est present). est presente.
+         */
+        if (str_contains($value['id'], 'field_block:')) {
+          [
+            $base_key,
+            $entity_id,
+            $entity_type
+          ] = explode(":", $value['id']);
+          $search_key = "$entity_id.$entity_type";
+          $has_key = false;
+          foreach ($sectionStoragesByLayoutKeys as $key) {
+            if (str_contains($key, $search_key)) {
+              $has_key = true;
+              break;
+            }
+          }
+          if (!$has_key)
+            continue;
+        }
+        $subdir = isset($value['subdir']) ? $value['subdir'] : '';
+        $type = !empty($value['type']) ? $value['type'] : 'module';
+        $this->addStyleFromView($value['library'], $value['id'], $value['display_id'], $subdir, $type, false);
+      }
+    }
   }
   
 }
