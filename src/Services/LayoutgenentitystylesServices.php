@@ -640,32 +640,6 @@ class LayoutgenentitystylesServices extends BuilderStylesBase {
   }
   
   /**
-   * Ajout le style apres l'enregistrement d'une entité (type d'affichage)
-   * disposant d'une library, ou tout autre module.
-   * SI on regenere les styles on a perd ces styles. ( correction baique: On va
-   * les ajoutés dans une variable de configuration pour le momment, apres on
-   * verra comment les gerer de maniere dynamique.)
-   * on le fait dans la config du module.
-   *
-   * @param string $library
-   */
-  protected function addStyleFromFieldsEntitiesOverride(string $library, $id, $display_id, $subdir = '', $type = 'module', $themeBuild = true) {
-    [
-      $module,
-      $filename
-    ] = explode("/", $library);
-    if ($module && $filename) {
-      $this->libraries[$module . '.' . $id . '.' . $display_id] = [
-        'scss' => [],
-        'js' => []
-      ];
-      $this->LoadStyleFromMod->getStyleDefault($module, $filename, $this->libraries[$module . '.' . $id . '.' . $display_id], $subdir, $type);
-      if ($themeBuild)
-        $this->addStylesToConfigTheme();
-    }
-  }
-  
-  /**
    * Ajoute les styles dans la configuration du theme.
    */
   protected function addStylesToConfigTheme($clean = false) {

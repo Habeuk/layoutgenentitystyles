@@ -19,6 +19,8 @@ use Drupal\generate_style_theme\Services\ManageFileMailStyle;
 use Drupal\Component\Utility\Timer;
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\layout_builder\Section;
+use Drupal\Core\Entity\EntityFieldManager;
+use Stephane888\Debug\Repositories\ConfigDrupal;
 
 class BuilderStylesBase extends ControllerBase {
   
@@ -81,6 +83,25 @@ class BuilderStylesBase extends ControllerBase {
    * @var \Drupal\layout_custom_style\StyleScssPluginManager
    */
   protected $StyleScssPlugin;
+  
+  /**
+   *
+   * @var EntityFieldManager
+   */
+  protected $EntityFieldManager;
+  /**
+   * contient les champs references regourpé par type d'entité.
+   *
+   * @var array
+   */
+  private $ReferenceFields = [];
+  
+  /**
+   * Default config ( config for layoutgenentitystyles ).
+   *
+   * @var array
+   */
+  private $configs = [];
   
   //
   // private $container;
@@ -176,6 +197,32 @@ class BuilderStylesBase extends ControllerBase {
   }
   
   /**
+   * Ajout le style apres l'enregistrement d'une entité (type d'affichage)
+   * disposant d'une library, ou tout autre module.
+   * SI on regenere les styles on a perd ces styles. ( correction baique: On va
+   * les ajoutés dans une variable de configuration pour le momment, apres on
+   * verra comment les gerer de maniere dynamique.)
+   * on le fait dans la config du module.
+   *
+   * @param string $library
+   */
+  protected function addStyleFromFieldsEntitiesOverride(string $library, $id, $display_id, $subdir = '', $type = 'module', $themeBuild = true) {
+    [
+      $module,
+      $filename
+    ] = explode("/", $library);
+    if ($module && $filename) {
+      $this->libraries[$module . '.' . $id . '.' . $display_id] = [
+        'scss' => [],
+        'js' => []
+      ];
+      $this->LoadStyleFromMod->getStyleDefault($module, $filename, $this->libraries[$module . '.' . $id . '.' . $display_id], $subdir, $type);
+      if ($themeBuild)
+        $this->addStylesToConfigTheme();
+    }
+  }
+  
+  /**
    * Recupere le theme par defaut.
    *
    * @return string
@@ -188,12 +235,62 @@ class BuilderStylesBase extends ControllerBase {
     return $this->libraries;
   }
   
-  public function getConfigs() {
-    return \Drupal::config('layoutgenentitystyles.settings')->getRawData();
+  /**
+   *
+   * @return array
+   */
+  public function getConfigs(): array {
+    if (!$this->configs) {
+      $this->configs = ConfigDrupal::config('layoutgenentitystyles.settings');
+    }
+    return $this->configs;
   }
   
   public function setShowMessage($status) {
     $this->shoMessage = $status;
+  }
+  
+  /**
+   *
+   * @return \Drupal\Core\Entity\EntityFieldManager
+   */
+  public function getEntityFieldManager() {
+    if (!$this->EntityFieldManager) {
+      $this->EntityFieldManager = \Drupal::service('entity_field.manager');
+    }
+    return $this->EntityFieldManager;
+  }
+  
+  /**
+   *
+   * @param string $entityTypeId
+   * @param string $bundle
+   * @return array
+   */
+  protected function getReferenceFields(string $entityTypeId, string $bundle, $EntityLayoutOverride = false): array {
+    $configs = $this->getConfigs();
+    if (empty($this->ReferenceFields[$entityTypeId . $bundle])) {
+      $entityFieldManager = $this->getEntityFieldManager();
+      $fieldDefinitions = $entityFieldManager->getFieldDefinitions($entityTypeId, $bundle);
+      $referenceFields = [];
+      foreach ($fieldDefinitions as $fieldName => $fieldDefinition) {
+        if ($fieldDefinition->getType() === 'entity_reference' || $fieldDefinition->getType() === 'entity_reference_revisions') {
+          $view = $fieldDefinition->getDisplayOptions('view');
+          if (!empty($view) && !empty($configs['entity_auto_generate'][$fieldDefinition->getSetting('target_type')])) {
+            $referenceFields[$fieldName] = [
+              'field_name' => $fieldDefinition->getName(),
+              'field_label' => $fieldDefinition->getLabel(),
+              'field_settings' => $fieldDefinition->getSettings(),
+              'field_display_view' => $view,
+              'layout_display' => false // il faudra determiner plus tard si le
+                                        // champs est disponible en affichage.
+            ];
+          }
+        }
+      }
+      $this->ReferenceFields[$entityTypeId . $bundle] = $referenceFields;
+    }
+    return $this->ReferenceFields[$entityTypeId . $bundle];
   }
   
   /**
