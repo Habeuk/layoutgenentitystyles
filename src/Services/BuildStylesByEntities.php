@@ -51,9 +51,19 @@ class BuildStylesByEntities extends BuilderStylesBase {
             $filename = $BundleOf . '__' . $bundle;
             $DefaultStyle = [];
             $customStyle = [];
+            /**
+             * Contient les librairies issuent des champs, views ...
+             *
+             * @var \Drupal\layoutgenentitystyles\Services\BuildStylesByEntities $libraries
+             */
+            $this->libraries = [];
             $this->generateStyleFromDefautlEntity($bundle, $BundleOf, $DefaultStyle, $customStyle);
             if ($DefaultStyle && $filename) {
+              if ($this->libraries) {
+                $DefaultStyle += $this->libraries;
+              }
               $this->librariesByEntity[$filename] = $DefaultStyle;
+              
               $this->customsStyleByEntity[$filename] = $customStyle;
               $this->routes['entity.' . $BundleOf . '.canonical.' . $bundle . '.default'] = $filename;
             }
@@ -79,7 +89,7 @@ class BuildStylesByEntities extends BuilderStylesBase {
     foreach ($sectionStoragesViews as $sectionStoragesView) {
       // 1/2=> Charge les styles inclus directement dans les layouts.
       // Ces styles commencent par @use ...
-      $this->generateSTyleFromEntity($sectionStoragesView, $DefaultStyle);
+      $this->generateSyleFromEntityView($sectionStoragesView, $DefaultStyle);
       // 2/2=> Charge les styles custom defini dans les entites ( via
       // l'interface graphque ).
       $this->generateCustomSTyleFromEntity($sectionStoragesView, $customStyle);
@@ -127,16 +137,10 @@ class BuildStylesByEntities extends BuilderStylesBase {
       $display_id = $entity->getEntityTypeId() . '__' . $entity->bundle() . '__' . $entity->id();
       if ($listSetions) {
         foreach ($listSetions as $value) {
-          /**
-           *
-           * @var \Drupal\layout_builder\Section $section
-           */
           $section = reset($value);
-          $this->generateStyleForFieldsFromEntitySection($section, $display_id, $entity, false);
           $sections[] = $section;
         }
-      }
-      if ($sections) {
+        $this->generateStyleForFieldsFromEntitySections($sections, $display_id, $entity, false);
         $section_storage_override_id = $entity->getEntityTypeId() . '.' . $entity->bundle() . '.' . $entity->id();
         $this->generateStyleFromSection($sections, $section_storage_override_id, false);
         // Generer les styles definits au niveau de l'interface utilisateur.
@@ -258,13 +262,38 @@ class BuildStylesByEntities extends BuilderStylesBase {
    * @param EntityInterface $entity
    * @param boolean $themeBuild
    */
-  protected function generateStyleForFieldsFromEntitySection(Section $section, $display_id, EntityInterface $entity, $themeBuild = false) {
-    $components = $section->getComponents();
-    foreach ($components as $component) {
-      $ar = $component->toArray();
-      if (!empty($ar['configuration']['formatter']['settings']['layoutgenentitystyles_view'])) {
-        $id = \str_replace(".", "__", $ar['configuration']['id']) . ':' . $entity->id();
-        $this->addStyleFromFieldsEntitiesOverride($ar['configuration']['formatter']['settings']['layoutgenentitystyles_view'], $id, $display_id, 'fields', 'module', $themeBuild);
+  protected function generateStyleForFieldsFromEntitySections(array $sections, $display_id, EntityInterface $entity, $themeBuild = false) {
+    foreach ($sections as $section) {
+      $components = $section->getComponents();
+      foreach ($components as $component) {
+        $ar = $component->toArray();
+        if (!empty($ar['configuration']['formatter']['settings']['layoutgenentitystyles_view'])) {
+          $id = \str_replace(".", "__", $ar['configuration']['id']) . ':' . $entity->id();
+          $this->addStyleFromFieldsEntitiesOverride($ar['configuration']['formatter']['settings']['layoutgenentitystyles_view'], $id, $display_id, 'fields', 'module', $themeBuild);
+        }
+        elseif (!empty($ar['configuration']['provider']) && $ar['configuration']['provider'] == 'views' && !empty($ar['configuration']['id'])) {
+          $parts = explode(':', $ar['configuration']['id'])[1];
+          [
+            $view_id,
+            $view_display_id
+          ] = explode('-', $parts, 2);
+          if ($view_id && $view_display_id) {
+            /**
+             *
+             * @var \Drupal\views\ViewExecutable $view
+             */
+            $view = \Drupal\views\Views::getView($view_id);
+            if ($view) {
+              $view->setDisplay($view_display_id);
+              // Ajout le styles d'affichages ( par exemple swipper ).
+              $styles = $view->getDisplay()->getOption('style');
+              if (!empty($styles['options']['layoutgenentitystyles_view'])) {
+                $this->addStyleFromView($styles['options']['layoutgenentitystyles_view'], $view_id, $view_display_id);
+              }
+              // @todo il faut ajouter les styles liées à l'entité.
+            }
+          }
+        }
       }
     }
   }
@@ -275,11 +304,13 @@ class BuildStylesByEntities extends BuilderStylesBase {
    *
    * @param LayoutBuilderEntityViewDisplay $entity
    */
-  protected function generateSTyleFromEntity(LayoutBuilderEntityViewDisplay $entityView, array &$styles) {
+  protected function generateSyleFromEntityView(LayoutBuilderEntityViewDisplay $entityView, array &$styles) {
     $layout_builder = $this->getSectionsForEntityView($entityView);
     $sections = $layout_builder['sections'] ?? [];
     if ($sections) {
       $styles[$entityView->id()] = $this->getLibraryForEachSections($sections);
+      $display_id = \str_replace('.', '_', $entityView->id());
+      $this->generateStyleForFieldsFromEntitySections($sections, $display_id, $entityView, false);
     }
   }
   
@@ -375,7 +406,7 @@ class BuildStylesByEntities extends BuilderStylesBase {
   }
   
   /**
-   * Certains entites sont ajouté au niveau des blocs cest generalement le cas
+   * Certains entites sont ajouté au niveau des blocs c'est generalement le cas
    * du menus, footers et autres ...
    */
   protected function loadStyleFromBlocs(array &$customStyles = []) {

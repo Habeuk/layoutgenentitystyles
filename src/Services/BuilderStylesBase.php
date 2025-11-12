@@ -121,7 +121,7 @@ class BuilderStylesBase extends ControllerBase {
     }
   }
   
-  public function getConfigFOR_generate_style_theme() {
+  protected function getConfigFOR_generate_style_theme() {
     if (!$this->conf) {
       $this->conf = $this->ConfigFactory->get('generate_style_theme.settings')->getRawData();
     }
@@ -227,7 +227,7 @@ class BuilderStylesBase extends ControllerBase {
    *
    * @return string
    */
-  public function getDefaultTheme() {
+  protected function getDefaultTheme() {
     return \Drupal::config('system.theme')->get('default');
   }
   
@@ -239,14 +239,14 @@ class BuilderStylesBase extends ControllerBase {
    *
    * @return array
    */
-  public function getConfigs(): array {
+  protected function getConfigs(): array {
     if (!$this->configs) {
       $this->configs = ConfigDrupal::config('layoutgenentitystyles.settings');
     }
     return $this->configs;
   }
   
-  public function setShowMessage($status) {
+  protected function setShowMessage($status) {
     $this->shoMessage = $status;
   }
   
@@ -388,6 +388,29 @@ class BuilderStylesBase extends ControllerBase {
       'scss' => $scss,
       'js' => $js
     ];
+  }
+  
+  /**
+   * Ajout le style apres l'enregistrement d'une view style d'affichage
+   * disposant d'une library.
+   *
+   * @param string $library
+   */
+  protected function addStyleFromView(string $library, $id, $display_id, $subdir = '', $type = 'module', $themeBuild = false) {
+    [
+      $module,
+      $filename
+    ] = explode("/", $library);
+    if ($module && $filename) {
+      $key = $module . '.views__' . $id . '.' . $display_id;
+      $this->libraries[$key] = [
+        'scss' => [],
+        'js' => []
+      ];
+      $this->LoadStyleFromMod->getStyleDefault($module, $filename, $this->libraries[$key], $subdir, $type);
+      if ($themeBuild)
+        $this->addStylesToConfigTheme();
+    }
   }
   
 }

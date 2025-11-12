@@ -360,29 +360,6 @@ class LayoutgenentitystylesServices extends BuilderStylesBase {
   }
   
   /**
-   * Ajout le style apres l'enregistrement d'une view style d'affichage
-   * disposant d'une library.
-   *
-   * @param string $library
-   */
-  function addStyleFromView(string $library, $id, $display_id, $subdir = '', $type = 'module', $themeBuild = true) {
-    [
-      $module,
-      $filename
-    ] = explode("/", $library);
-    if ($module && $filename) {
-      $key = $module . '.views__' . $id . '.' . $display_id;
-      $this->libraries[$key] = [
-        'scss' => [],
-        'js' => []
-      ];
-      $this->LoadStyleFromMod->getStyleDefault($module, $filename, $this->libraries[$key], $subdir, $type);
-      if ($themeBuild)
-        $this->addStylesToConfigTheme();
-    }
-  }
-  
-  /**
    *
    * @param string $library
    * @param string $id
