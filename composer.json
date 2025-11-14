@@ -10,6 +10,6 @@
 	],
 	"minimum-stability" : "dev",
 	"require" : {
-		"drupal/generate_style_theme" : "^4.0.5|dev-4x"
+		"drupal/generate_style_theme" : "^5.0.1|5.x-dev"
 	}
 }
