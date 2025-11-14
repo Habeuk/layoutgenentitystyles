@@ -84,8 +84,13 @@ class BuildStylesByEntities extends BuilderStylesBase {
     }
   }
   
-  protected function generateStyleFromDefautlEntity($bundle, $entityTypeId, &$DefaultStyle = [], &$customStyle = []) {
+  protected function generateStyleFromDefautlEntity($bundle, $entityTypeId, &$DefaultStyle = [], &$customStyle = [], $display_mode=null) {
     $sectionStoragesViews = $this->loadEntityViewDisplay($bundle, $entityTypeId);
+    if($display_mode && isset($sectionStoragesViews["$entityTypeId.$bundle.$display_mode"])){
+      $sectionStoragesViews = [
+        $display_mode => $sectionStoragesViews["$entityTypeId.$bundle.$display_mode"]
+      ];
+    }
     foreach ($sectionStoragesViews as $sectionStoragesView) {
       // 1/2=> Charge les styles inclus directement dans les layouts.
       // Ces styles commencent par @use ...
@@ -95,10 +100,10 @@ class BuildStylesByEntities extends BuilderStylesBase {
       $this->generateCustomSTyleFromEntity($sectionStoragesView, $customStyle);
     }
   }
-  
+ 
   protected function generateOverrideStyleFromEntity(LayoutBuilderEntityViewDisplay $entityView) {
     $layout_builder = $this->getSectionsForEntityView($entityView);
-    if (!empty($layout_builder['allow_custom'])) {
+   
       /**
        * Il faut charger tous les contenus, et creer les styles pour chaque
        * contenu surchargé.
@@ -106,6 +111,9 @@ class BuildStylesByEntities extends BuilderStylesBase {
       $entities = $this->entityTypeManager()->getStorage($entityView->getTargetEntityTypeId())->loadByProperties([
         'type' => $entityView->getTargetBundle()
       ]);
+      /**
+      * @todo à transformer
+      */
       foreach ($entities as $entity) {
         $this->libraries = [];
         $customStyles = [];
@@ -123,7 +131,7 @@ class BuildStylesByEntities extends BuilderStylesBase {
           $this->customsStyleByEntity[$filename] = $customStyles;
           $this->routes['entity.' . $entityTypeId . '.canonical.' . $bundle . '.' . $entity->id()] = $filename;
         }
-      }
+      
     }
   }
   
@@ -140,7 +148,7 @@ class BuildStylesByEntities extends BuilderStylesBase {
           $section = reset($value);
           $sections[] = $section;
         }
-        $this->generateStyleForFieldsFromEntitySections($sections, $display_id, $entity, false);
+        $this->generateStyleForFieldsFromEntitySections($sections, $display_id, $entity, false, $customStyles);
         $section_storage_override_id = $entity->getEntityTypeId() . '.' . $entity->bundle() . '.' . $entity->id();
         $this->generateStyleFromSection($sections, $section_storage_override_id, false);
         // Generer les styles definits au niveau de l'interface utilisateur.
@@ -153,8 +161,8 @@ class BuildStylesByEntities extends BuilderStylesBase {
         // $customStyles);
         // }
       }
-      $this->getStyleFromReferences($entity, $customStyles);
     }
+    $this->getStyleFromReferences($entity, $customStyles);
   }
   
   /**
@@ -262,7 +270,7 @@ class BuildStylesByEntities extends BuilderStylesBase {
    * @param EntityInterface $entity
    * @param boolean $themeBuild
    */
-  protected function generateStyleForFieldsFromEntitySections(array $sections, $display_id, EntityInterface $entity, $themeBuild = false) {
+  protected function generateStyleForFieldsFromEntitySections(array $sections, $display_id, EntityInterface $entity, $themeBuild = false,array &$customStyles=[]) {
     foreach ($sections as $section) {
       $components = $section->getComponents();
       foreach ($components as $component) {
@@ -290,7 +298,24 @@ class BuildStylesByEntities extends BuilderStylesBase {
               if (!empty($styles['options']['layoutgenentitystyles_view'])) {
                 $this->addStyleFromView($styles['options']['layoutgenentitystyles_view'], $view_id, $view_display_id);
               }
-              // @todo il faut ajouter les styles liées à l'entité.
+              
+              $filters = $view->getDisplay()->getOption('filters');
+              $bundles = null;
+              $entityConfigTypeId = $view->getBaseEntityType()->getBundleEntityType();
+              $entityTypeId = $view->getBaseEntityType()->id();
+              if(isset($filters["type"]["value"])) {
+                $bundles = $view->getDisplay()->getOption('filters')["type"]["value"] ;
+              }
+              else{
+                $bundles = $this->entityTypeManager()->getStorage($entityConfigTypeId)->loadMultiple();
+              }
+              $bundles = array_keys($bundles) ; 
+              foreach ($bundles as $bundle) {
+                $defaultStyles = [];
+                $view_mode = $view->getDisplay()->getOption("row")["options"]["view_mode"];
+                $this->generateStyleFromDefautlEntity($bundle, $entityTypeId, $defaultStyles, $customStyles, $view_mode);
+                $this->libraries += $defaultStyles;
+              }
             }
           }
         }
@@ -310,7 +335,7 @@ class BuildStylesByEntities extends BuilderStylesBase {
     if ($sections) {
       $styles[$entityView->id()] = $this->getLibraryForEachSections($sections);
       $display_id = \str_replace('.', '_', $entityView->id());
-      $this->generateStyleForFieldsFromEntitySections($sections, $display_id, $entityView, false);
+      $this->generateStyleForFieldsFromEntitySections($sections, $display_id, $entityView, false, $styles);
     }
   }
   

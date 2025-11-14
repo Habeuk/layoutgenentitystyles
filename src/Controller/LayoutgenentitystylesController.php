@@ -36,6 +36,9 @@ class LayoutgenentitystylesController extends ControllerBase {
   /**
    */
   protected $LayoutgenentitystylesServices;
+  /**
+   * @var BuildStylesByEntities
+   */
   protected $buildStylesByEntities;
   
   function __construct(LayoutgenentitystylesServices $LayoutgenentitystylesServices, BuildStylesByEntities $buildStylesByEntities) {
