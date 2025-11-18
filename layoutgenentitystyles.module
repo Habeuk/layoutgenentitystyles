@@ -9,8 +9,10 @@
  * This file is no longer required in Drupal 8.
  * @see https://www.drupal.org/node/2217931
  */
+
 use Stephane888\Debug\Repositories\ConfigDrupal;
 use Drupal\Core\Entity\EntityInterface;
+use Drupal\Core\Url;
 
 /**
  * Ce hook s'execute uniquement à la sauvegarde d'une entité de configuration.
@@ -90,5 +92,37 @@ function layoutgenentitystyles_entity_presave(EntityInterface $entity) {
   }
 }
 
-
-
+function layoutgenentitystyles_preprocess_menu_local_tasks(&$vars) {
+  $configFactory = \Drupal::configFactory();
+  $tab1Configs = $configFactory->get("generate_style_theme.settings")->getRawData();
+  $multipleAllowed = false;
+  if (isset($tab1Configs, $tab1Configs["tab1"], $tab1Configs["tab1"]["save_multifile"])) {
+    $multipleAllowed = $tab1Configs["tab1"]["save_multifile"] ? true : false;
+  }
+  if ($multipleAllowed) {
+    $entitiesToOverrides = $configFactory->get("layoutgenentitystyles.settings")->get("entities_pages");
+    if ($entitiesToOverrides) {
+      $entitiesToOverrides = array_map(function ($element) {
+        return explode("_type", $element)[0];
+      }, array_keys($entitiesToOverrides));
+      $currentRoute = \Drupal::routeMatch();
+      $routeName = $currentRoute->getRouteName();
+      $routeElements = explode(".", $routeName);
+      if (isset($routeElements[2]) && $routeElements[0] == "entity" &&  $routeElements[2] == "canonical") {
+        $entityType = $routeElements[1];
+        if (in_array($entityType, $entitiesToOverrides)) {
+          $vars["primary"]["genEntityStyle"] = $vars["primary"][$routeName];
+          unset($vars["primary"]["genEntityStyle"]["#link"]);
+          $vars["primary"]["genEntityStyle"]["#link"] = [
+            "title" => t("Generate individual styles"),
+            "url" => new Url("layoutgenentitystyles.generate.individual.entity", [
+              "entity_type_id" => $entityType,
+              "entity_id" => $currentRoute->getParameter($entityType)->id(),
+            ])
+          ];
+          $vars["primary"]["genEntityStyle"]["#weight"] = 20;
+        }
+      }
+    }
+  }
+}
