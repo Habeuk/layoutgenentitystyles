@@ -13,12 +13,17 @@ use Drupal\Core\Plugin\PluginFormInterface;
 use Drupal\layoutgenentitystyles\Services\LayoutgenentitystylesServices;
 use Drupal\layoutgenentitystyles\Services\BuildStylesByEntities;
 use Drupal\Component\Serialization\Json;
+use Drupal\generate_style_theme\Services\Reposotories\GenerateFiles;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
 /**
  * Returns responses for layout generate entity styles routes.
  */
 class LayoutgenentitystylesController extends ControllerBase {
+  /**
+   * to be able to lunch npm run {Dev,Prod} from here
+   */
+  use GenerateFiles;
 
   /**
    * The section storage manager.

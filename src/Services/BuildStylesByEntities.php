@@ -32,6 +32,11 @@ class BuildStylesByEntities extends BuilderStylesBase {
   protected array $customsStyleByEntity = [];
 
   /**
+   * @var ConfigThemeEntity
+   */
+  protected $configThemeEntity;
+
+  /**
    * Permet de parcourir les entites qui peuvent avoir les styles.
    */
   protected function entitiesGenerateDefautlStyles() {
@@ -382,27 +387,41 @@ class BuildStylesByEntities extends BuilderStylesBase {
     }
   }
 
+  public function getActiveConfigThemeEntity() {
+    if (!$this->configThemeEntity) {
+
+      $defaultThemeName = $this->getDefaultTheme();
+      if (!empty($defaultThemeName)) {
+
+        $ids = $this->entityTypeManager()->getStorage('config_theme_entity')->getQuery()->condition('hostname', $defaultThemeName)->accessCheck(false)->execute();
+        if (!empty($ids)) {
+          $this->configThemeEntity =  ConfigThemeEntity::load(reset($ids));
+        }
+      }
+    }
+    return $this->configThemeEntity;
+  }
+
   /**
    * Genrere directement les fichiers scss et js.
    */
   protected function generateFilesStyles() {
     $defaultThemeName = $this->getDefaultTheme();
-    if (!empty($defaultThemeName)) {
-      $ids = $this->entityTypeManager()->getStorage('config_theme_entity')->getQuery()->condition('hostname', $defaultThemeName)->accessCheck(false)->execute();
-      if (!empty($ids)) {
-        $auto_generate_entries = [];
-        $entity = ConfigThemeEntity::load(reset($ids));
-        $GenerateStyleTheme = new GenerateStyleTheme($entity);
-        foreach ($this->librariesByEntity as $filename => $styles) {
-          $librairiesStyles = $this->getArrayScssJs($styles);
-          $customsStyles = $this->getArrayScssJs($this->customsStyleByEntity[$filename]);
-          $GenerateStyleTheme->buildCustomScssFromArray($librairiesStyles['scss'], $filename, $customsStyles['scss']);
-          $GenerateStyleTheme->buildCustomJsFromArray($librairiesStyles['js'], $filename, $customsStyles['js']);
-          $auto_generate_entries[$filename] = './src/js/' . $filename . '.js';
-        }
-        $GenerateStyleTheme->autoGenerateEntries($auto_generate_entries);
+
+    $auto_generate_entries = [];
+    $entity = $this->getActiveConfigThemeEntity();
+    if ($entity) {
+      $GenerateStyleTheme = new GenerateStyleTheme($entity);
+      foreach ($this->librariesByEntity as $filename => $styles) {
+        $librairiesStyles = $this->getArrayScssJs($styles);
+        $customsStyles = $this->getArrayScssJs($this->customsStyleByEntity[$filename]);
+        $GenerateStyleTheme->buildCustomScssFromArray($librairiesStyles['scss'], $filename, $customsStyles['scss']);
+        $GenerateStyleTheme->buildCustomJsFromArray($librairiesStyles['js'], $filename, $customsStyles['js']);
+        $auto_generate_entries[$filename] = './src/js/' . $filename . '.js';
       }
+      $GenerateStyleTheme->autoGenerateEntries($auto_generate_entries);
     }
+
     if ($this->shoMessage)
       $this->messenger()->addStatus("Vous devez regenerer votre theme");
   }
@@ -440,6 +459,10 @@ class BuildStylesByEntities extends BuilderStylesBase {
       $this->generateOverrideStyleFromOneEntity($entity);
       $this->generateFilesStyles();
       $this->saveRoutesInThemes();
+
+      $configThemeEntity  = $this->getActiveConfigThemeEntity();
+      $GenerateStyleTheme = new GenerateStyleTheme($configThemeEntity);
+      $GenerateStyleTheme->RunNpm();
     }
   }
 

@@ -17,7 +17,7 @@ layoutgenentitystyles.generate.by.entities:
 layoutgenentitystyles.generate.individual.entity:
   path: '/admin/config/system/layoutgenentitystyles/manuel/generate-individual-entity/{entity_type_id}/{entity_id}'
   defaults:
-    _title: 'Add scss import to theme'
+    _title: 'Generate style for the page'
     _controller: '\Drupal\layoutgenentitystyles\Controller\LayoutgenentitystylesController::ManuelGenerateIndividualEntity'
   requirements:
     _permission: 'rebuild layoutgenentitystyles'
