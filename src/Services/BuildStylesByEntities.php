@@ -405,7 +405,7 @@ class BuildStylesByEntities extends BuilderStylesBase {
   /**
    * Genrere directement les fichiers scss et js.
    */
-  protected function generateFilesStyles() {
+  protected function generateFilesStyles($generateAll = True) {
     $defaultThemeName = $this->getDefaultTheme();
 
     $auto_generate_entries = [];
@@ -419,7 +419,7 @@ class BuildStylesByEntities extends BuilderStylesBase {
         $GenerateStyleTheme->buildCustomJsFromArray($librairiesStyles['js'], $filename, $customsStyles['js']);
         $auto_generate_entries[$filename] = './src/js/' . $filename . '.js';
       }
-      $GenerateStyleTheme->autoGenerateEntries($auto_generate_entries);
+      $GenerateStyleTheme->autoGenerateEntries($auto_generate_entries, $generateAll);
     }
 
     if ($this->shoMessage)
@@ -457,7 +457,7 @@ class BuildStylesByEntities extends BuilderStylesBase {
     if (!empty($ModuleConf['tab1']) && $ModuleConf['tab1']['save_multifile'] == 1) {
       // 2 - Genere les fichiers dynamique.
       $this->generateOverrideStyleFromOneEntity($entity);
-      $this->generateFilesStyles();
+      $this->generateFilesStyles(False);
       $this->saveRoutesInThemes();
 
       $configThemeEntity  = $this->getActiveConfigThemeEntity();
