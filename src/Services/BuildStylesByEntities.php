@@ -458,7 +458,7 @@ class BuildStylesByEntities extends BuilderStylesBase {
       // 2 - Genere les fichiers dynamique.
       $this->generateOverrideStyleFromOneEntity($entity);
       $this->generateFilesStyles(False);
-      $this->saveRoutesInThemes();
+      $this->saveRoutesInThemes(False);
 
       $configThemeEntity  = $this->getActiveConfigThemeEntity();
       $GenerateStyleTheme = new GenerateStyleTheme($configThemeEntity);
