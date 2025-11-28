@@ -36,6 +36,13 @@ class BuildStylesByEntities extends BuilderStylesBase {
    */
   protected $configThemeEntity;
 
+
+  /**
+   * Contient les bundle qui sont déjà passé par la génération
+   * @var array
+   */
+  protected $bundlesProcessed = [];
+
   /**
    * Permet de parcourir les entites qui peuvent avoir les styles.
    */
@@ -61,7 +68,10 @@ class BuildStylesByEntities extends BuilderStylesBase {
              * @var \Drupal\layoutgenentitystyles\Services\BuildStylesByEntities $libraries
              */
             $this->libraries = [];
-            $this->generateStyleFromDefautlEntity($bundle, $BundleOf, $DefaultStyle, $customStyle);
+            if (!$this->canProcessBundle($BundleOf . '.' . $bundle)) {
+              continue;
+            }
+            $this->generateStyleFromDefautlEntity($bundle, $BundleOf, $DefaultStyle, $customStyle);           
             if ($DefaultStyle && $filename) {
               if ($this->libraries) {
                 $DefaultStyle += $this->libraries;
@@ -72,7 +82,7 @@ class BuildStylesByEntities extends BuilderStylesBase {
               $this->routes['entity.' . $BundleOf . '.canonical.' . $bundle . '.default'] = $filename;
             }
             // Charge les styles surchargés.
-            $sectionStoragesViews = $this->loadEntityViewDisplay($bundle, $BundleOf);
+            $sectionStoragesViews = $this->loadEntityViewDisplay($bundle, $BundleOf);  
             foreach ($sectionStoragesViews as $sectionStoragesView) {
               $this->generateOverrideStyleFromEntity($sectionStoragesView);
             }
@@ -190,6 +200,9 @@ class BuildStylesByEntities extends BuilderStylesBase {
             $SubBundle = $subEntity->bundle() ? $subEntity->bundle() : $SubEntityTypeId;
             $DefaultStyle = [];
             // $customStyle = [];
+            if (!$this->canProcessBundle($SubEntityTypeId . '.' . $SubBundle)) {
+              continue;
+            }
             $this->generateStyleFromDefautlEntity($SubBundle, $SubEntityTypeId, $DefaultStyle, $customStyles);
             $this->libraries += $DefaultStyle;
             // if ($entity->id() == 52) {
@@ -276,6 +289,9 @@ class BuildStylesByEntities extends BuilderStylesBase {
    * @param boolean $themeBuild
    */
   protected function generateStyleForFieldsFromEntitySections(array $sections, $display_id, EntityInterface $entity, $themeBuild = false, array &$customStyles = []) {
+    /**
+     * @var LayoutBuilderEntityViewDisplay $entity
+     */
     foreach ($sections as $section) {
       $components = $section->getComponents();
       foreach ($components as $component) {
@@ -314,10 +330,12 @@ class BuildStylesByEntities extends BuilderStylesBase {
               }
               $bundles = array_keys($bundles);
               foreach ($bundles as $bundle) {
-                $defaultStyles = [];
-                $view_mode = $view->getDisplay()->getOption("row")["options"]["view_mode"];
-                $this->generateStyleFromDefautlEntity($bundle, $entityTypeId, $defaultStyles, $customStyles, $view_mode);
-                $this->libraries += $defaultStyles;
+                if ($this->canProcessBundle($entityTypeId . '.' . $bundle)) {
+                  $defaultStyles = [];
+                  $view_mode = $view->getDisplay()->getOption("row")["options"]["view_mode"];
+                  $this->generateStyleFromDefautlEntity($bundle, $entityTypeId, $defaultStyles, $customStyles, $view_mode);
+                  $this->libraries += $defaultStyles;
+                }
               }
             }
           }
@@ -325,7 +343,16 @@ class BuildStylesByEntities extends BuilderStylesBase {
       }
     }
   }
-
+  /**
+   * @return bool
+   */
+  protected function canProcessBundle($bundleKey): bool {
+    if (in_array($bundleKey, $this->bundlesProcessed)) {
+      return False;
+    }
+    $this->bundlesProcessed[] = $bundleKey;
+    return True;
+  }
   /**
    * Genere les styles par defaut pour le mode d'affichage.
    * Ces styles proviennent de "@stephane888/wbu-atomique/..."
@@ -505,11 +532,13 @@ class BuildStylesByEntities extends BuilderStylesBase {
           // 2/3 => Si l'entité n'est pas surchargé.
           $EntityTypeId = $entity->getEntityTypeId();
           $Bundle = $entity->bundle() ? $entity->bundle() : $EntityTypeId;
-          $DefaultStyle = [];
-          $this->generateStyleFromDefautlEntity($Bundle, $EntityTypeId, $DefaultStyle, $customStyles);
-          $this->libraries += $DefaultStyle;
-          // 3/3 les styles incluent dans les references.
-          $this->getStyleFromReferences($entity, $customStyles);
+          if ($this->canProcessBundle($EntityTypeId . "." . $Bundle)) {
+            $DefaultStyle = [];
+            $this->generateStyleFromDefautlEntity($Bundle, $EntityTypeId, $DefaultStyle, $customStyles);
+            $this->libraries += $DefaultStyle;
+            // 3/3 les styles incluent dans les references.
+            $this->getStyleFromReferences($entity, $customStyles);
+          }
         }
       }
     }
