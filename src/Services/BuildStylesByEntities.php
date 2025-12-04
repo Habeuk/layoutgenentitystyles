@@ -93,8 +93,10 @@ class BuildStylesByEntities extends BuilderStylesBase {
                 $DefaultStyle += $this->libraries;
               }
               $this->librariesByEntity[$filename] = $DefaultStyle;
+              
               $this->customsStyleByEntity[$filename] = $customStyle;
               $this->routes['entity.' . $BundleOf . '.canonical.' . $bundle . '.default'] = $filename;
+              // dump($BundleOf . '.' . $bundle, $DefaultStyle);
             }
             // Charge les styles surchargés.
             $sectionStoragesViews = $this->loadEntityViewDisplay($bundle, $BundleOf);
@@ -223,6 +225,7 @@ class BuildStylesByEntities extends BuilderStylesBase {
     $entityTypeId = $entity->getEntityTypeId();
     $bundle = $entity->bundle() ? $entity->bundle() : $entityTypeId;
     $referenceFields = $this->getReferenceFields($entityTypeId, $bundle);
+    
     foreach ($referenceFields as $referenceField) {
       $values = $entity->get($referenceField['field_name'])->getValue();
       if ($values) {
@@ -397,7 +400,7 @@ class BuildStylesByEntities extends BuilderStylesBase {
     $layout_builder = $this->getSectionsForEntityView($entityView);
     $sections = $layout_builder['sections'] ?? [];
     if ($sections) {
-      $customsStyles[$entityView->id()] = $this->getLibraryForEachSections($sections);
+      $DefaultStyle[$entityView->id()] = $this->getLibraryForEachSections($sections);
       $display_id = \str_replace('.', '_', $entityView->id());
       $this->generateStyleForFieldsFromEntitySections($sections, $display_id, $entityView, false, $customsStyles);
     }
@@ -409,13 +412,13 @@ class BuildStylesByEntities extends BuilderStylesBase {
    * @param LayoutBuilderEntityViewDisplay $entityView
    * @param array $styles
    */
-  protected function generateCustomSTyleFromEntity(LayoutBuilderEntityViewDisplay $entityView, array &$styles) {
+  protected function generateCustomSTyleFromEntity(LayoutBuilderEntityViewDisplay $entityView, array &$customsStyles) {
     $layout_builder = $this->getSectionsForEntityView($entityView);
     $sections = $layout_builder['sections'] ?? [];
     if ($sections) {
-      if (empty($styles[$entityView->id()]))
-        $styles[$entityView->id()] = [];
-      $this->generateCustomStyles($sections, $styles[$entityView->id()]);
+      if (empty($customsStyles[$entityView->id()]))
+        $customsStyles[$entityView->id()] = [];
+      $this->generateCustomStyles($sections, $customsStyles[$entityView->id()]);
     }
   }
   
@@ -472,8 +475,12 @@ class BuildStylesByEntities extends BuilderStylesBase {
     if ($entity) {
       $GenerateStyleTheme = new GenerateStyleTheme($entity);
       foreach ($this->librariesByEntity as $filename => $styles) {
+        
         $librairiesStyles = $this->getArrayScssJs($styles);
         $customsStyles = $this->getArrayScssJs($this->customsStyleByEntity[$filename]);
+        // if ("node__article" == $filename) {
+        // dd($librairiesStyles, $customsStyles);
+        // }
         $GenerateStyleTheme->buildCustomScssFromArray($librairiesStyles['scss'], $filename, $customsStyles['scss']);
         $GenerateStyleTheme->buildCustomJsFromArray($librairiesStyles['js'], $filename, $customsStyles['js']);
         $auto_generate_entries[$filename] = './src/js/' . $filename . '.js';
@@ -493,15 +500,16 @@ class BuildStylesByEntities extends BuilderStylesBase {
     // On construit les styles en fonction des entités.
     if (!empty($ModuleConf['tab1']) && $ModuleConf['tab1']['save_multifile'] == 1) {
       // 1 - Genere les fichiers de base.
-      // $customStyles = [];
-      // $this->loadStyleFromBlocs($customStyles);
-      // $this->addStylesToConfigTheme(true, $customStyles);
-      // // On regenere le fichier custom.
-      // $this->ManageFileCustomStyle->generateCustomFile(true);
-      // // On regenere le fichier custom d'email.
-      // $this->ManageFileMailStyle->generateCustomFile();
-      // 2 - Genere les fichiers dynamique.
-      $this->entitiesGenerateDefautlStyles();
+      $customStyles = [];
+      $this->loadStyleFromBlocs($customStyles);
+      $this->addStylesToConfigTheme(true, $customStyles);
+      // On regenere le fichier custom.
+      $this->ManageFileCustomStyle->generateCustomFile(true);
+      // On regenere le fichier custom d'email.
+      $this->ManageFileMailStyle->generateCustomFile();
+      dd($this->libraries, $customStyles);
+      // // 2 - Genere les fichiers dynamique.
+      // $this->entitiesGenerateDefautlStyles();
     }
   }
   
@@ -556,18 +564,24 @@ class BuildStylesByEntities extends BuilderStylesBase {
           }
         }
         if ($entity_type_id && $entity) {
-          
+          if ($entity->id() != 3) {
+            continue;
+          }
           // 1/3 => Si l'entité est surchargé.
           $this->getAllStylesFromOverrideEntity($entity, $customStyles);
+          if ($entity->id() == 3) {
+            dd($this->libraries, $customStyles);
+          }
           // 2/3 => Si l'entité n'est pas surchargé.
           $EntityTypeId = $entity->getEntityTypeId();
           $Bundle = $entity->bundle() ? $entity->bundle() : $EntityTypeId;
-          if ($this->canProcessBundle($EntityTypeId . "." . $Bundle)) {
-            $DefaultStyle = [];
-            $this->generateStyleFromDefautlEntity($Bundle, $EntityTypeId, $DefaultStyle, $customStyles);
-            $this->libraries += $DefaultStyle;
-            // 3/3 les styles incluent dans les references.
-            $this->getStyleFromReferences($entity, $customStyles);
+          $DefaultStyle = [];
+          $this->generateStyleFromDefautlEntity($Bundle, $EntityTypeId, $DefaultStyle, $customStyles);
+          $this->libraries += $DefaultStyle;
+          // 3/3 les styles incluent dans les references.
+          $this->getStyleFromReferences($entity, $customStyles);
+          if ($entity->id() == 3) {
+            dd($this->libraries, $customStyles);
           }
         }
       }

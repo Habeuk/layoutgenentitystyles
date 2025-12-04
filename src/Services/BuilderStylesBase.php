@@ -143,7 +143,7 @@ class BuilderStylesBase extends ControllerBase {
   
   /**
    * Retourne les libraries contenuu dans les sections.
-   * ( i.e, retourner les les chemins vers les fichiers js ou scss ).
+   * ( i.e, retourner les chemins vers les fichiers js ou scss ).
    *
    * @param array $sections
    */
@@ -276,6 +276,7 @@ class BuilderStylesBase extends ControllerBase {
       foreach ($fieldDefinitions as $fieldName => $fieldDefinition) {
         if ($fieldDefinition->getType() === 'entity_reference' || $fieldDefinition->getType() === 'entity_reference_revisions') {
           $view = $fieldDefinition->getDisplayOptions('view');
+          dump($fieldName, $fieldDefinition->toArray());
           if (!empty($view) && !empty($configs['entity_auto_generate'][$fieldDefinition->getSetting('target_type')])) {
             $referenceFields[$fieldName] = [
               'field_name' => $fieldDefinition->getName(),
