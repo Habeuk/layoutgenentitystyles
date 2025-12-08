@@ -43,11 +43,11 @@ class BuildStylesByEntities extends BuilderStylesBase {
    */
   protected $bundlesProcessed = [];
   /**
-   * test uniquement.
+   * Permet de construire les pages et les sous entites.
    *
-   * @var integer
+   * @var array
    */
-  protected $tests = 0;
+  private $pages = [];
   
   /**
    * Permet de parcourir les entites qui peuvent avoir les styles.
@@ -87,6 +87,7 @@ class BuildStylesByEntities extends BuilderStylesBase {
             if ($entity_type_id == "blocks_contents_type") {
               $count++;
             }
+            
             $this->generateStyleFromDefautlEntity($bundle, $BundleOf, $DefaultStyle, $customStyle);
             if (($DefaultStyle || $customStyle) && $filename) {
               if ($this->libraries) {
@@ -103,13 +104,15 @@ class BuildStylesByEntities extends BuilderStylesBase {
             foreach ($sectionStoragesViews as $sectionStoragesView) {
               $this->generateOverrideStyleFromEntity($sectionStoragesView);
             }
+            // Permet d'avoir une apercu.
+            $this->pages[$bundle . '.' . $BundleOf] = [
+              'libraries' => $this->librariesByEntity,
+              'custom_styles' => $this->customsStyleByEntity
+            ];
           }
         }
-        if ($entity_type_id == "blocks_contents_type") {
-          // dd($count, $this->bundlesProcessed);
-        }
       }
-      // dd($this->librariesByEntity, $this->routes);
+      
       $this->generateFilesStyles();
       $this->saveRoutesInThemes();
     }
@@ -390,6 +393,10 @@ class BuildStylesByEntities extends BuilderStylesBase {
     return true;
   }
   
+  function getPages(): array {
+    return $this->pages;
+  }
+  
   /**
    * Genere les styles par defaut pour le mode d'affichage.
    * Ces styles proviennent de "@stephane888/wbu-atomique/..."
@@ -476,12 +483,8 @@ class BuildStylesByEntities extends BuilderStylesBase {
     if ($entity) {
       $GenerateStyleTheme = new GenerateStyleTheme($entity);
       foreach ($this->librariesByEntity as $filename => $styles) {
-        
         $librairiesStyles = $this->getArrayScssJs($styles);
         $customsStyles = $this->getArrayScssJs($this->customsStyleByEntity[$filename]);
-        // if ("node__article" == $filename) {
-        // dd($librairiesStyles, $customsStyles);
-        // }
         $GenerateStyleTheme->buildCustomScssFromArray($librairiesStyles['scss'], $filename, $customsStyles['scss']);
         $GenerateStyleTheme->buildCustomJsFromArray($librairiesStyles['js'], $filename, $customsStyles['js']);
         $auto_generate_entries[$filename] = './src/js/' . $filename . '.js';
@@ -574,6 +577,11 @@ class BuildStylesByEntities extends BuilderStylesBase {
           $this->libraries += $DefaultStyle;
           // 3/3 les styles incluent dans les references.
           $this->getStyleFromReferences($entity, $customStyles);
+          
+          $this->pages[$Bundle . '.' . $EntityTypeId] = [
+            'libraries' => $this->librariesByEntity,
+            'custom_styles' => $this->customsStyleByEntity
+          ];
         }
       }
     }

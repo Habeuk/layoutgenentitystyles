@@ -1,12 +1,4 @@
 layoutgenentitystyles.generate:
-  path: '/admin/config/system/layoutgenentitystyles/manuel/generate'
-  defaults:
-    _title: 'Add scss import to theme'
-    _controller: '\Drupal\layoutgenentitystyles\Controller\LayoutgenentitystylesController::ManuelGenerate'
-  requirements:
-    _permission: 'rebuild layoutgenentitystyles'
-
-layoutgenentitystyles.generate.by.entities:
   path: '/admin/config/system/layoutgenentitystyles/manuel/generate-by-entities'
   defaults:
     _title: 'Add scss import to theme'

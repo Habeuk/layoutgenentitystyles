@@ -410,8 +410,8 @@ class BuilderStylesBase extends ControllerBase {
         'js' => []
       ];
       $this->LoadStyleFromMod->getStyleDefault($module, $filename, $this->libraries[$key], $subdir, $type);
-      if ($themeBuild)
-        $this->addStylesToConfigTheme();
+      // if ($themeBuild)
+      // $this->addStylesToConfigTheme();
     }
   }
   
