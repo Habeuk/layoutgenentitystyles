@@ -478,7 +478,15 @@ class BuildStylesByEntities extends BuilderStylesBase {
    * Genrere directement les fichiers scss et js.
    */
   protected function generateFilesStyles($generateAll = True) {
-    $auto_generate_entries = [];
+    if ($generateAll) {
+      $auto_generate_entries = [
+        'global-style' => './src/js/global-style.js',
+        'vendor-style' => './src/js/vendor-style.js',
+        'mail-style' => './src/js/mail-style.js'
+      ];
+    }
+    else
+      $auto_generate_entries = [];
     $entity = $this->getActiveConfigThemeEntity();
     if ($entity) {
       $GenerateStyleTheme = new GenerateStyleTheme($entity);
@@ -489,6 +497,7 @@ class BuildStylesByEntities extends BuilderStylesBase {
         $GenerateStyleTheme->buildCustomJsFromArray($librairiesStyles['js'], $filename, $customsStyles['js']);
         $auto_generate_entries[$filename] = './src/js/' . $filename . '.js';
       }
+      
       $GenerateStyleTheme->autoGenerateEntries($auto_generate_entries, $generateAll);
     }
     if ($this->shoMessage)
@@ -586,5 +595,4 @@ class BuildStylesByEntities extends BuilderStylesBase {
       }
     }
   }
-  
 }
