@@ -262,6 +262,8 @@ class BuilderStylesBase extends ControllerBase {
   }
   
   /**
+   * Retourne un tableau avec les informations sur l'entité et le bundle à
+   * construire.
    *
    * @param string $entityTypeId
    * @param string $bundle
@@ -276,7 +278,6 @@ class BuilderStylesBase extends ControllerBase {
       foreach ($fieldDefinitions as $fieldName => $fieldDefinition) {
         if ($fieldDefinition->getType() === 'entity_reference' || $fieldDefinition->getType() === 'entity_reference_revisions') {
           $view = $fieldDefinition->getDisplayOptions('view');
-          dump($fieldName, $fieldDefinition->toArray());
           if (!empty($view) && !empty($configs['entity_auto_generate'][$fieldDefinition->getSetting('target_type')])) {
             $referenceFields[$fieldName] = [
               'field_name' => $fieldDefinition->getName(),

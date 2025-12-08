@@ -133,11 +133,12 @@ class BuildStylesByEntities extends BuilderStylesBase {
         $display_mode => $sectionStoragesViews["$entityTypeId.$bundle.$display_mode"]
       ];
     }
-    foreach ($sectionStoragesViews as $sectionStoragesView) {
+    
+    foreach ($sectionStoragesViews as $key => $sectionStoragesView) {
       /**
        * Les affiches par defaut sont unique.
        */
-      if (!$this->canProcessBundle($entityTypeId . '.' . $bundle)) {
+      if ($this->canProcessBundle($key)) {
         // 1/2=> Charge les styles inclus directement dans les layouts.
         // Ces styles commencent par @use ...
         $this->generateSyleFromEntityView($sectionStoragesView, $DefaultStyle, $customStyle);
@@ -225,7 +226,6 @@ class BuildStylesByEntities extends BuilderStylesBase {
     $entityTypeId = $entity->getEntityTypeId();
     $bundle = $entity->bundle() ? $entity->bundle() : $entityTypeId;
     $referenceFields = $this->getReferenceFields($entityTypeId, $bundle);
-    
     foreach ($referenceFields as $referenceField) {
       $values = $entity->get($referenceField['field_name'])->getValue();
       if ($values) {
@@ -234,7 +234,7 @@ class BuildStylesByEntities extends BuilderStylesBase {
           if ($subEntity) {
             // 1/2 => Si l'entites est surchargé.
             $this->getAllStylesFromOverrideEntity($subEntity, $customStyles);
-            // 1/2 => Si l'enite n'est pas surchargé.
+            // 1/2 => Si l'entite n'est pas surchargé.
             $SubEntityTypeId = $subEntity->getEntityTypeId();
             $SubBundle = $subEntity->bundle() ? $subEntity->bundle() : $SubEntityTypeId;
             $DefaultStyle = [];
@@ -346,7 +346,7 @@ class BuildStylesByEntities extends BuilderStylesBase {
             $view = \Drupal\views\Views::getView($view_id);
             if ($view) {
               $view->setDisplay($view_display_id);
-              // Ajout le styles d'affichages ( par exemple swipper ).
+              // Ajout le style d'affichages ( par exemple swipper ).
               $styles = $view->getDisplay()->getOption('style');
               if (!empty($styles['options']['layoutgenentitystyles_view'])) {
                 $this->addStyleFromView($styles['options']['layoutgenentitystyles_view'], $view_id, $view_display_id);
@@ -382,12 +382,12 @@ class BuildStylesByEntities extends BuilderStylesBase {
    *
    * @return bool
    */
-  protected function canProcessBundle($bundleKey, $entity = null): bool {
-    if (isset($this->bundlesProcessed[$bundleKey])) {
-      return False;
+  protected function canProcessBundle($bundleKey): bool {
+    if (!empty($this->bundlesProcessed[$bundleKey])) {
+      return false;
     }
     $this->bundlesProcessed[$bundleKey] = $bundleKey;
-    return True;
+    return true;
   }
   
   /**
@@ -399,6 +399,7 @@ class BuildStylesByEntities extends BuilderStylesBase {
   protected function generateSyleFromEntityView(LayoutBuilderEntityViewDisplay $entityView, array &$DefaultStyle, &$customsStyles = []) {
     $layout_builder = $this->getSectionsForEntityView($entityView);
     $sections = $layout_builder['sections'] ?? [];
+    
     if ($sections) {
       $DefaultStyle[$entityView->id()] = $this->getLibraryForEachSections($sections);
       $display_id = \str_replace('.', '_', $entityView->id());
@@ -507,9 +508,8 @@ class BuildStylesByEntities extends BuilderStylesBase {
       $this->ManageFileCustomStyle->generateCustomFile(true);
       // On regenere le fichier custom d'email.
       $this->ManageFileMailStyle->generateCustomFile();
-      dd($this->libraries, $customStyles);
-      // // 2 - Genere les fichiers dynamique.
-      // $this->entitiesGenerateDefautlStyles();
+      // 2 - Genere les fichiers dynamique.
+      $this->entitiesGenerateDefautlStyles();
     }
   }
   
@@ -564,14 +564,8 @@ class BuildStylesByEntities extends BuilderStylesBase {
           }
         }
         if ($entity_type_id && $entity) {
-          if ($entity->id() != 3) {
-            continue;
-          }
           // 1/3 => Si l'entité est surchargé.
           $this->getAllStylesFromOverrideEntity($entity, $customStyles);
-          if ($entity->id() == 3) {
-            dd($this->libraries, $customStyles);
-          }
           // 2/3 => Si l'entité n'est pas surchargé.
           $EntityTypeId = $entity->getEntityTypeId();
           $Bundle = $entity->bundle() ? $entity->bundle() : $EntityTypeId;
@@ -580,9 +574,6 @@ class BuildStylesByEntities extends BuilderStylesBase {
           $this->libraries += $DefaultStyle;
           // 3/3 les styles incluent dans les references.
           $this->getStyleFromReferences($entity, $customStyles);
-          if ($entity->id() == 3) {
-            dd($this->libraries, $customStyles);
-          }
         }
       }
     }
