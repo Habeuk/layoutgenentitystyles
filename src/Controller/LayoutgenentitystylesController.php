@@ -215,7 +215,10 @@ class LayoutgenentitystylesController extends ControllerBase {
   // ///////////////////////////////////////////////////////////////////////////
   public function ManuelGenerateByEntities() {
     $this->buildStylesByEntities->generateAllFilesStyles();
-    $pages = $this->buildStylesByEntities->getPages();
+    // Rendus fait buguer la page, car il utilise bcp de ram pour les sites
+    // ayant bcp de contenu.
+    // @todo voir comment gerer cela.
+    $pages = []; // $this->buildStylesByEntities->getPages();
     $pageId = 1;
     $accordion = [];
     
@@ -326,5 +329,4 @@ class LayoutgenentitystylesController extends ControllerBase {
     }
     return true;
   }
-  
 }
