@@ -153,7 +153,6 @@ class BuildStylesByEntities extends BuilderStylesBase {
   }
   
   protected function generateOverrideStyleFromEntity(LayoutBuilderEntityViewDisplay $entityView) {
-    // $layout_builder = $this->getSectionsForEntityView($entityView);
     /**
      * Il faut charger tous les contenus, et creer les styles pour chaque
      * contenu surchargé.
@@ -163,7 +162,8 @@ class BuildStylesByEntities extends BuilderStylesBase {
     ]);
     /**
      *
-     * @todo à transformer
+     * @todo à transformer en processus batch ou à partir de la fonction
+     *       principale.
      */
     foreach ($entities as $entity) {
       $this->libraries = [];
@@ -174,10 +174,7 @@ class BuildStylesByEntities extends BuilderStylesBase {
        * @var \Drupal\layoutgenentitystyles\Services\BuildStylesByEntities $bundlesProcessed
        */
       $this->bundlesProcessed = [];
-      $this->getAllStylesFromOverrideEntity($entity, $customStyles);
-      if ($this->libraries) {
-        $this->generateOverrideStyleFromOneEntity($entity, $customStyles, False);
-      }
+      $this->generateOverrideStyleFromOneEntity($entity, $customStyles, False);
     }
   }
   
@@ -523,6 +520,9 @@ class BuildStylesByEntities extends BuilderStylesBase {
       // 2 - Genere les fichiers dynamique.
       $this->entitiesGenerateDefautlStyles();
     }
+    else {
+      \Drupal::messenger()->addWarning("Vous devez activer la generation multiple de fichiers de styles");
+    }
   }
   
   /**
@@ -595,4 +595,5 @@ class BuildStylesByEntities extends BuilderStylesBase {
       }
     }
   }
+  
 }

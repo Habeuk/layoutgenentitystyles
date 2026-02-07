@@ -275,6 +275,7 @@ class BuilderStylesBase extends ControllerBase {
       $entityFieldManager = $this->getEntityFieldManager();
       $fieldDefinitions = $entityFieldManager->getFieldDefinitions($entityTypeId, $bundle);
       $referenceFields = [];
+      
       foreach ($fieldDefinitions as $fieldName => $fieldDefinition) {
         if ($fieldDefinition->getType() === 'entity_reference' || $fieldDefinition->getType() === 'entity_reference_revisions') {
           $view = $fieldDefinition->getDisplayOptions('view');
