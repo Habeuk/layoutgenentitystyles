@@ -297,8 +297,11 @@ class BuildStylesByEntities extends BuilderStylesBase {
         $FilesStyle = \Drupal\generate_style_theme\Entity\FilesStyle::loadByName($ar['id'], 'layout_custom_style');
         if ($FilesStyle) {
           $prefix = "\n";
+          $prefix .= "// ====================================================================== \n";
           $prefix .= "// module : " . $FilesStyle->getModule() . ' || ' . $FilesStyle->label();
-          $prefix .= " \n";
+          $prefix .= "\n";
+          $prefix .= "// ======================================================================";
+          $prefix .= "\n";
           $scss = $FilesStyle->getScss();
           if (!empty($scss))
             $styles['scss'][$ar['id']][] = $prefix . $scss;
@@ -489,12 +492,28 @@ class BuildStylesByEntities extends BuilderStylesBase {
       $GenerateStyleTheme = new GenerateStyleTheme($entity);
       foreach ($this->librariesByEntity as $filename => $styles) {
         $librairiesStyles = $this->getArrayScssJs($styles);
+        // On charge les styles statiques.
+        $routePath = $this->pathFromFileName($filename);
+        if (!empty($routePath)) {
+          $styles = $this->ManageFileCustomStyle->generateSpecificStyles($routePath);
+          $this->customsStyleByEntity[$filename]['generate_style_theme.styles.custom'] = [
+            'scss' => [
+              'generate_style_theme__styles__custom' => [
+                $styles['scss']
+              ]
+            ],
+            'js' => [
+              'generate_style_theme__styles__custom' => [
+                $styles['js']
+              ]
+            ]
+          ];
+        }
         $customsStyles = $this->getArrayScssJs($this->customsStyleByEntity[$filename]);
         $GenerateStyleTheme->buildCustomScssFromArray($librairiesStyles['scss'], $filename, $customsStyles['scss']);
         $GenerateStyleTheme->buildCustomJsFromArray($librairiesStyles['js'], $filename, $customsStyles['js']);
         $auto_generate_entries[$filename] = './src/js/' . $filename . '.js';
       }
-      
       $GenerateStyleTheme->autoGenerateEntries($auto_generate_entries, $generateAll);
     }
     if ($this->shoMessage)
@@ -512,9 +531,8 @@ class BuildStylesByEntities extends BuilderStylesBase {
       // 1 - Genere les fichiers de base.
       $customStyles = [];
       $this->loadStyleFromBlocs($customStyles);
+      
       $this->addStylesToConfigTheme(true, $customStyles);
-      // On regenere le fichier custom.
-      $this->ManageFileCustomStyle->generateCustomFile(true);
       // On regenere le fichier custom d'email.
       $this->ManageFileMailStyle->generateCustomFile();
       // 2 - Genere les fichiers dynamique.
@@ -575,6 +593,7 @@ class BuildStylesByEntities extends BuilderStylesBase {
             $entity = $this->entityTypeManager()->getStorage($entity_type_id)->load($settings['entity']);
           }
         }
+        
         if ($entity_type_id && $entity) {
           // 1/3 => Si l'entité est surchargé.
           $this->getAllStylesFromOverrideEntity($entity, $customStyles);
@@ -594,6 +613,31 @@ class BuildStylesByEntities extends BuilderStylesBase {
         }
       }
     }
+  }
+  
+  private function pathFromFileName(string $filename) {
+    $path_array = explode('__', $filename);
+    $bundle = "";
+    switch (count($path_array)) {
+      case 1:
+        // nothing to do
+        break;
+      case 2:
+        $bundle = $path_array[0];
+        break;
+      case 3:
+        $bundle = $path_array[0];
+        $entity_id = $path_array[2];
+        break;
+    }
+    $path = "";
+    if ($bundle === "blocks_contents" || $bundle == "site_internet_entity") {
+      $bundle = str_replace("_", "-", $bundle);
+    }
+    if (!empty($entity_id)) {
+      $path = "/$bundle/$entity_id";
+    }
+    return $path;
   }
   
 }

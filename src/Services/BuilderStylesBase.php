@@ -352,6 +352,8 @@ class BuilderStylesBase extends ControllerBase {
         }
         $config->save();
       }
+      // @todo à supprimer à la version 6.x ( le temps de nettoyer les configs
+      // de themes ).
       else {
         $config->clear('layoutgenentitystyles');
         $config->save();
@@ -359,6 +361,20 @@ class BuilderStylesBase extends ControllerBase {
       //
       $ids = $this->entityTypeManager()->getStorage('config_theme_entity')->getQuery()->condition('hostname', $defaultThemeName)->accessCheck(false)->execute();
       if (!empty($ids)) {
+        // importe les styles customs definit pour toutes les pages.
+        $styles = $this->ManageFileCustomStyle->generateGlobalestyles();
+        $customStyles['generate_style_theme.styles.custom'] = [
+          'scss' => [
+            'generate_style_theme__styles__custom' => [
+              $styles['scss']
+            ]
+          ],
+          'js' => [
+            'generate_style_theme__styles__custom' => [
+              $styles['js']
+            ]
+          ]
+        ];
         $entity = ConfigThemeEntity::load(reset($ids));
         $GenerateStyleTheme = new GenerateStyleTheme($entity);
         $librairiesStyles = $this->getArrayScssJs($this->libraries);
