@@ -77,23 +77,35 @@ class LayoutgenentitystylesController extends ControllerBase {
    * @return string[]|string[][]|string[][][]|array[][]
    */
   public function ManuelGenerateIndividualEntity($entity_type_id, $entity_id) {
-    $items = [];
     $entity = $this->entityTypeManager()->getStorage($entity_type_id)->load($entity_id);
-    $this->buildStylesByEntities->generateFileForEntity($entity);
-    $lists = [
-      '#type' => 'html_tag',
-      '#tag' => 'ol',
-      '#attributes' => [
-        'style' => ''
-      ],
-      $items
-    ];
+    
+    if (!$entity) {
+      return [
+        '#markup' => $this->t('Entity not found.')
+      ];
+    }
+    
+    $items = $this->buildStylesByEntities->generateFileForEntity($entity);
+    $list_items = [];
+    
+    foreach ($items as $key => $value) {
+      $list_styles = is_array($value) ? array_keys($value) : [];
+      $list_items[] = $this->t('@key : @styles', [
+        '@key' => $key,
+        '@styles' => implode(" / ", $list_styles)
+      ]);
+    }
+    
     $build['content'] = [
-      '#type' => 'item',
-      '#markup' => "Les styles ont été MAJ.",
-      $lists
+      '#theme' => 'item_list',
+      '#items' => $list_items,
+      '#list_type' => 'ol',
+      '#title' => $this->t('Les styles ont été mis à jour.'),
+      '#attributes' => [
+        'style' => 'margin-bottom:30px;'
+      ]
     ];
-    //
+    
     return $build;
   }
   
@@ -329,4 +341,5 @@ class LayoutgenentitystylesController extends ControllerBase {
     }
     return true;
   }
+  
 }

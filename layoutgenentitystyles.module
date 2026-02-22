@@ -9,7 +9,6 @@
  * This file is no longer required in Drupal 8.
  * @see https://www.drupal.org/node/2217931
  */
-
 use Stephane888\Debug\Repositories\ConfigDrupal;
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Url;
@@ -20,78 +19,106 @@ use Drupal\Core\Url;
  * hook_ENTITY_TYPE_presave
  * Entity id : entity_view_display
  */
-function layoutgenentitystyles_entity_view_display_presave(EntityInterface $entityView) {
-  $configs = ConfigDrupal::config('layoutgenentitystyles.settings');
-  if (($configs['enabled_auto_generate_config'] || $configs['enabled_auto_generate_fieldconfig']) && !$entityView->isNew()) {
-    if (method_exists($entityView, 'getSections')) {
-      $status = true;
-      /**
-       * On va permettre à d'autre module de pouvoir ajouter des conditions de
-       * validations surpplementaires.
-       */
-      \Drupal::moduleHandler()->invokeAll('layoutgenentitystyles_presave_alter_status', [
-        &$status,
-        $entityView
-      ]);
-      if ($status) {
-        if ($configs['enabled_auto_generate_config']) {
-          /**
-           *
-           * @var \Drupal\layoutgenentitystyles\Services\LayoutgenentitystylesServices $style
-           */
-          $style = \Drupal::getContainer()->get('layoutgenentitystyles.add.style.theme');
-          $style->generateSTyleFromEntity($entityView);
-        }
-        if ($configs['enabled_auto_generate_fieldconfig']) {
-          /**
-           *
-           * @var \Drupal\layoutgenentitystyles\Services\LayoutgenentitystylesServices $style
-           */
-          $style = \Drupal::getContainer()->get('layoutgenentitystyles.add.style.theme');
-          $style->generateStyleFromFieldConfigDisplay($entityView);
-        }
-      }
-    }
-  }
-}
+/**
+ *
+ * @deprecated Cette methode est preprecié car ce sont les pages qui portent les
+ *             styles.
+ * @param EntityInterface $entityView
+ */
+// function layoutgenentitystyles_entity_view_display_presave(EntityInterface
+// $entityView) {
+// $configs = ConfigDrupal::config('layoutgenentitystyles.settings');
+// if (($configs['enabled_auto_generate_config'] ||
+// $configs['enabled_auto_generate_fieldconfig']) && !$entityView->isNew()) {
+// if (method_exists($entityView, 'getSections')) {
+// $status = true;
+// /**
+// * On va permettre à d'autre module de pouvoir ajouter des conditions de
+// * validations surpplementaires.
+// */
+// \Drupal::moduleHandler()->invokeAll('layoutgenentitystyles_presave_alter_status',
+// [
+// &$status,
+// $entityView
+// ]);
+// if ($status) {
+// if ($configs['enabled_auto_generate_config']) {
+// /**
+// *
+// * @var \Drupal\layoutgenentitystyles\Services\LayoutgenentitystylesServices
+// $style
+// */
+// $style =
+// \Drupal::getContainer()->get('layoutgenentitystyles.add.style.theme');
+// $style->generateSTyleFromEntity($entityView);
+// }
+// if ($configs['enabled_auto_generate_fieldconfig']) {
+// /**
+// *
+// * @var \Drupal\layoutgenentitystyles\Services\LayoutgenentitystylesServices
+// $style
+// */
+// $style =
+// \Drupal::getContainer()->get('layoutgenentitystyles.add.style.theme');
+// $style->generateStyleFromFieldConfigDisplay($entityView);
+// }
+// }
+// }
+// }
+// }
 
 /**
  * hook_ENTITY_TYPE_presave
  * il faut accorder l'execution de cette function et des function similaire à
  * des utilisateurs ayant des droits suffisant.
  * Cela s'execute lors de la creation de chaque entité.
+ *
+ * @deprecated pour des raisons de performences( elle s'execute à chaque
+ *             sauvegarde d'entite), on va laisser l'url permettant
+ *             de generer les styles. La sauvegarde
  */
-function layoutgenentitystyles_entity_presave(EntityInterface $entity) {
-  $configs = ConfigDrupal::config('layoutgenentitystyles.settings');
-  if (!empty($configs['enabled_auto_generate_entity']) && !empty($configs['entity_auto_generate'][$entity->getEntityTypeId()]) && !$entity->isNew()) {
-    $status = true;
-    /**
-     * On va permettre à d'autre module de pouvoir ajouter des conditions de
-     * validations surpplementaires.
-     */
-    \Drupal::moduleHandler()->invokeAll('layoutgenentitystyles_presave_alter_status', [
-      &$status,
-      $entity
-    ]);
-    if ($status && method_exists($entity, 'hasField'))
-      if ($entity->hasField('layout_builder__layout')) {
-        $sections = [];
-        $listSetions = $entity->get('layout_builder__layout')->getValue();
-        $section_storage = $entity->getEntityTypeId() . '.' . $entity->bundle() . '.' . $entity->id();
-        foreach ($listSetions as $value) {
-          $sections[] = reset($value);
-        }
-        /**
-         *
-         * @var \Drupal\layoutgenentitystyles\Services\LayoutgenentitystylesServices $style
-         */
-        $style = \Drupal::getContainer()->get('layoutgenentitystyles.add.style.theme');
-        $style->generateStyleFromSection($sections, $section_storage);
-        $style->generateStyleForFieldsFromEntity($sections, $section_storage, $entity);
-      }
-  }
-}
-
+// function layoutgenentitystyles_entity_presave(EntityInterface $entity) {
+// $configs = ConfigDrupal::config('layoutgenentitystyles.settings');
+// if (!empty($configs['enabled_auto_generate_entity']) &&
+// !empty($configs['entity_auto_generate'][$entity->getEntityTypeId()]) &&
+// !$entity->isNew()) {
+// $status = true;
+// /**
+// * On va permettre à d'autre module de pouvoir ajouter des conditions de
+// * validations surpplementaires.
+// */
+// \Drupal::moduleHandler()->invokeAll('layoutgenentitystyles_presave_alter_status',
+// [
+// &$status,
+// $entity
+// ]);
+// if ($status && method_exists($entity, 'hasField'))
+// if ($entity->hasField('layout_builder__layout')) {
+// $sections = [];
+// $listSetions = $entity->get('layout_builder__layout')->getValue();
+// $section_storage = $entity->getEntityTypeId() . '.' . $entity->bundle() . '.'
+// . $entity->id();
+// foreach ($listSetions as $value) {
+// $sections[] = reset($value);
+// }
+// /**
+// *
+// * @var \Drupal\layoutgenentitystyles\Services\LayoutgenentitystylesServices
+// $style
+// */
+// $style =
+// \Drupal::getContainer()->get('layoutgenentitystyles.add.style.theme');
+// $style->generateStyleFromSection($sections, $section_storage);
+// $style->generateStyleForFieldsFromEntity($sections, $section_storage,
+// $entity);
+// }
+// }
+// }
+/**
+ * Ajoute le lien pour generer les styles d'une page.
+ *
+ * @param array $vars
+ */
 function layoutgenentitystyles_preprocess_menu_local_tasks(&$vars) {
   $configFactory = \Drupal::configFactory();
   $tab1Configs = $configFactory->get("generate_style_theme.settings")->getRawData();
@@ -108,7 +135,7 @@ function layoutgenentitystyles_preprocess_menu_local_tasks(&$vars) {
       $currentRoute = \Drupal::routeMatch();
       $routeName = $currentRoute->getRouteName();
       $routeElements = explode(".", $routeName);
-      if (isset($routeElements[2]) && $routeElements[0] == "entity" &&  $routeElements[2] == "canonical") {
+      if (isset($routeElements[2]) && $routeElements[0] == "entity" && $routeElements[2] == "canonical") {
         $entityType = $routeElements[1];
         if (in_array($entityType, $entitiesToOverrides)) {
           $vars["primary"]["genEntityStyle"] = $vars["primary"][$routeName];
@@ -117,7 +144,7 @@ function layoutgenentitystyles_preprocess_menu_local_tasks(&$vars) {
             "title" => t("Generate individual styles"),
             "url" => new Url("layoutgenentitystyles.generate.individual.entity", [
               "entity_type_id" => $entityType,
-              "entity_id" => $currentRoute->getParameter($entityType)->id(),
+              "entity_id" => $currentRoute->getParameter($entityType)->id()
             ])
           ];
           $vars["primary"]["genEntityStyle"]["#weight"] = 20;

@@ -48,6 +48,7 @@ class BuildStylesByEntities extends BuilderStylesBase {
    * @var array
    */
   private $pages = [];
+  private $CheckEntityTypeManagerExist = [];
   
   /**
    * Permet de parcourir les entites qui peuvent avoir les styles.
@@ -68,7 +69,6 @@ class BuildStylesByEntities extends BuilderStylesBase {
           if ($entityConfigType instanceof \Drupal\Core\Config\Entity\ConfigEntityBundleBase) {
             $entityType = $entityConfigType->getEntityType();
             $BundleOf = $entityType->getBundleOf();
-            $filename = $BundleOf . '__' . $bundle;
             $DefaultStyle = [];
             $customStyle = [];
             /**
@@ -87,24 +87,26 @@ class BuildStylesByEntities extends BuilderStylesBase {
             if ($entity_type_id == "blocks_contents_type") {
               $count++;
             }
-            
-            $this->generateStyleFromDefautlEntity($bundle, $BundleOf, $DefaultStyle, $customStyle);
-            if (($DefaultStyle || $customStyle) && $filename) {
-              if ($this->libraries) {
-                $DefaultStyle += $this->libraries;
-              }
-              $this->librariesByEntity[$filename] = $DefaultStyle;
-              
-              $this->customsStyleByEntity[$filename] = $customStyle;
-              $this->routes['entity.' . $BundleOf . '.canonical.' . $bundle . '.default'] = $filename;
-              // dump($BundleOf . '.' . $bundle, $DefaultStyle);
-            }
+            /**
+             * On charge uniquement les styles par defaut.
+             */
+            $this->generateStyleFromDefautlEntity($bundle, $BundleOf, $DefaultStyle, $customStyle, 'default');
+            $this->prepareFiles($DefaultStyle, $customStyle, $BundleOf, $bundle);
+            // if (($DefaultStyle || $customStyle) && $filename) {
+            // if ($this->libraries) {
+            // $DefaultStyle += $this->libraries;
+            // }
+            // $this->librariesByEntity[$filename] = $DefaultStyle;
+            // $this->customsStyleByEntity[$filename] = $customStyle;
+            // $this->routes['entity.' . $BundleOf . '.canonical.' . $bundle .
+            // '.default'] = $filename;
+            // }
             // Charge les styles surchargés.
             $sectionStoragesViews = $this->loadEntityViewDisplay($bundle, $BundleOf);
             foreach ($sectionStoragesViews as $sectionStoragesView) {
               $this->generateOverrideStyleFromEntity($sectionStoragesView);
             }
-            // Permet d'avoir une apercu.
+            // Permet d'avoir un apercu.
             $this->pages[$bundle . '.' . $BundleOf] = [
               'libraries' => $this->librariesByEntity,
               'custom_styles' => $this->customsStyleByEntity
@@ -122,6 +124,26 @@ class BuildStylesByEntities extends BuilderStylesBase {
   }
   
   /**
+   * Prepare la generation des fichiers pour les modes d'affichage par defaut.
+   *
+   * @param array $DefaultStyle
+   * @param array $customStyle
+   * @param string $BundleOf
+   * @param string $bundle
+   */
+  private function prepareFiles(array $DefaultStyle, array $customStyle, string $BundleOf, string $bundle) {
+    if (($DefaultStyle || $customStyle)) {
+      $filename = $BundleOf . '__' . $bundle;
+      if ($this->libraries) {
+        $DefaultStyle += $this->libraries;
+      }
+      $this->librariesByEntity[$filename] = $DefaultStyle;
+      $this->customsStyleByEntity[$filename] = $customStyle;
+      $this->routes['entity.' . $BundleOf . '.canonical.' . $bundle . '.default'] = $filename;
+    }
+  }
+  
+  /**
    *
    * @param string $bundle
    * @param string $entityTypeId
@@ -130,13 +152,22 @@ class BuildStylesByEntities extends BuilderStylesBase {
    * @param string $display_mode
    */
   protected function generateStyleFromDefautlEntity(string $bundle, string $entityTypeId, &$DefaultStyle = [], &$customStyle = [], $display_mode = null) {
-    $sectionStoragesViews = $this->loadEntityViewDisplay($bundle, $entityTypeId);
-    if ($display_mode && isset($sectionStoragesViews["$entityTypeId.$bundle.$display_mode"])) {
-      $sectionStoragesViews = [
-        $display_mode => $sectionStoragesViews["$entityTypeId.$bundle.$display_mode"]
-      ];
+    if (empty($this->CheckEntityTypeManagerExist[$entityTypeId])) {
+      $this->CheckEntityTypeManagerExist[$entityTypeId] = $this->entityTypeManager()->getStorage($entityTypeId) ? 'found' : 'not_found';
+      if ($this->CheckEntityTypeManagerExist[$entityTypeId] == 'not_found') {
+        $this->messenger()->addWarning("L'entité '$entityTypeId' n'existe pas");
+      }
     }
+    $sectionStoragesViews = $this->loadEntityViewDisplay($bundle, $entityTypeId);
     
+    if ($display_mode) {
+      if (isset($sectionStoragesViews["$entityTypeId.$bundle.$display_mode"]))
+        $sectionStoragesViews = [
+          $display_mode => $sectionStoragesViews["$entityTypeId.$bundle.$display_mode"]
+        ];
+      else
+        $sectionStoragesViews = [];
+    }
     foreach ($sectionStoragesViews as $key => $sectionStoragesView) {
       /**
        * Les affiches par defaut sont unique.
@@ -146,7 +177,7 @@ class BuildStylesByEntities extends BuilderStylesBase {
         // Ces styles commencent par @use ...
         $this->generateSyleFromEntityView($sectionStoragesView, $DefaultStyle, $customStyle);
         // 2/2=> Charge les styles custom defini dans les entites ( via
-        // l'interface graphque ).
+        // l'interface graphique ).
         $this->generateCustomSTyleFromEntity($sectionStoragesView, $customStyle);
       }
     }
@@ -178,7 +209,17 @@ class BuildStylesByEntities extends BuilderStylesBase {
     }
   }
   
-  protected function generateOverrideStyleFromOneEntity($entity, &$customStyles = [], $override = True) {
+  /**
+   * Recupere tous les styles definie sur une entité surchargé et les styles
+   * ajoutés par les references (generalement entité paragraph).
+   * NB: les entites definie au niveau l'affichage du type d'entité sont generés
+   * ici generateStyleFromDefautlEntity.
+   *
+   * @param ContentEntityBase $entity
+   * @param array $customStyles
+   * @param boolean $override
+   */
+  protected function generateOverrideStyleFromOneEntity(ContentEntityBase $entity, &$customStyles = [], $override = True) {
     if ($override) {
       $this->libraries = [];
     }
@@ -238,14 +279,11 @@ class BuildStylesByEntities extends BuilderStylesBase {
             $SubEntityTypeId = $subEntity->getEntityTypeId();
             $SubBundle = $subEntity->bundle() ? $subEntity->bundle() : $SubEntityTypeId;
             $DefaultStyle = [];
-            // $customStyle = [];
-            // if (!$this->canProcessBundle($SubEntityTypeId . '.' . $SubBundle
-            // . '.' . $subEntity->id(), [
-            // $entity,
-            // $subEntity->id()
-            // ])) {
-            // continue;
-            // }
+            /**
+             *
+             * @todo il faudra charger specifiquement les styles necessaire, en
+             *       fonction du mode d'affichage.
+             */
             $this->generateStyleFromDefautlEntity($SubBundle, $SubEntityTypeId, $DefaultStyle, $customStyles);
             $this->libraries += $DefaultStyle;
           }
@@ -446,16 +484,34 @@ class BuildStylesByEntities extends BuilderStylesBase {
     $ModuleConf = $this->getConfigFOR_generate_style_theme();
     if ($defaultThemeName) {
       $conf = \Drupal\generate_style_theme\GenerateStyleTheme::getDynamicConfig($defaultThemeName, $ModuleConf);
+      /**
+       *
+       * @var \Drupal\Core\Config\Config $config
+       */
       $config = $this->ConfigFactory->getEditable($conf['settings']);
       // Clean datas.
       if ($clean) {
         $config->set('routesname', []);
         $config->save();
+        foreach ($this->routes as $routeName => $value) {
+          $config->set('routesname.' . $routeName, $defaultThemeName . '/' . $value);
+        }
+        $config->save();
       }
-      foreach ($this->routes as $routeName => $value) {
-        $config->set('routesname.' . $routeName, $defaultThemeName . '/' . $value);
+      else {
+        // On evite la sauvegarde.
+        $saveIt = false;
+        foreach ($this->routes as $routeName => $value) {
+          $oldValue = $config->get('routesname.' . $routeName);
+          if ($oldValue) {
+            $saveIt = true;
+            $config->set('routesname.' . $routeName, $defaultThemeName . '/' . $value);
+          }
+        }
+        if ($saveIt) {
+          $config->save();
+        }
       }
-      $config->save();
     }
   }
   
@@ -513,11 +569,11 @@ class BuildStylesByEntities extends BuilderStylesBase {
         $GenerateStyleTheme->buildCustomScssFromArray($librairiesStyles['scss'], $filename, $customsStyles['scss']);
         $GenerateStyleTheme->buildCustomJsFromArray($librairiesStyles['js'], $filename, $customsStyles['js']);
         $auto_generate_entries[$filename] = './src/js/' . $filename . '.js';
+        if ($generateAll && $this->shoMessage)
+          $this->messenger()->addStatus("Les fichiers scss et js(node) ont été genéré, vous devez effacé les caches et lancer manuellement la creation des fichiers css et js utilisé par le theme.");
       }
       $GenerateStyleTheme->autoGenerateEntries($auto_generate_entries, $generateAll);
     }
-    if ($this->shoMessage)
-      $this->messenger()->addStatus("Vous devez regenerer votre theme");
   }
   
   /**
@@ -547,19 +603,33 @@ class BuildStylesByEntities extends BuilderStylesBase {
    * Permet de generer tous les styles et de les ajouter dans la configuration
    * du theme actif.
    */
-  public function generateFileForEntity($entity) {
+  public function generateFileForEntity(ContentEntityBase $entity): array {
     $ModuleConf = $this->getConfigFOR_generate_style_theme();
     // On construit les styles en fonction des entités.
     if (!empty($ModuleConf['tab1']) && $ModuleConf['tab1']['save_multifile'] == 1) {
+      $this->libraries = [];
+      // 1- On recupere les styles definie au niveau de l'affichage par defaut.
+      $DefaultStyle = [];
+      $customStyle = [];
+      $BundleOf = $entity->getEntityTypeId();
+      $bundle = $entity->bundle();
+      $this->generateStyleFromDefautlEntity($bundle, $BundleOf, $DefaultStyle, $customStyle, 'default');
+      $this->prepareFiles($DefaultStyle, $customStyle, $BundleOf, $bundle);
       // 2 - Genere les fichiers dynamique.
+      $this->libraries = [];
       $this->generateOverrideStyleFromOneEntity($entity);
       $this->generateFilesStyles(False);
       $this->saveRoutesInThemes(False);
-      
-      $configThemeEntity = $this->getActiveConfigThemeEntity();
-      $GenerateStyleTheme = new GenerateStyleTheme($configThemeEntity);
-      $GenerateStyleTheme->RunNpm();
+      if ($ModuleConf['tab1']['run_node']) {
+        $configThemeEntity = $this->getActiveConfigThemeEntity();
+        $GenerateStyleTheme = new GenerateStyleTheme($configThemeEntity);
+        $customFiles = \array_keys($this->librariesByEntity);
+        $GenerateStyleTheme->RunNpmCustom($customFiles);
+        if ($this->shoMessage)
+          $this->messenger()->addStatus("Vous devez recharger votre page avec Ctrl+F5");
+      }
     }
+    return $this->librariesByEntity;
   }
   
   /**
