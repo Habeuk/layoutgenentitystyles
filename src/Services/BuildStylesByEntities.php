@@ -628,6 +628,15 @@ class BuildStylesByEntities extends BuilderStylesBase {
         if ($this->shoMessage)
           $this->messenger()->addStatus("Vous devez recharger votre page avec Ctrl+F5");
       }
+      else {
+        $keys = array_keys($this->librariesByEntity);
+        if ($keys !== []) {
+          $style_generate = implode(" ", $keys);
+          \Drupal::messenger()->addStatus("npm run Dev:custom --custom $style_generate");
+        }
+        else
+          \Drupal::messenger()->addStatus("npm run Dev:custom --custom node__page__52 ou npm run Dev:custom --custom node__page__52 NB: node__page__52");
+      }
     }
     return $this->librariesByEntity;
   }
